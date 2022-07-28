@@ -58,7 +58,7 @@ Finding best three templates according to match score. Filling in templates with
 
 \subsection{Diagnosing literals that have no matching template}
 Given the above discussion it is fairly straightforward to find literals that do not match any template. The nuance is in using this as the deciding factor actually being too eager. Specifically, incomplete literals (e.g. literals that are being typed) will, in general, not match a template. This means that every literal that is being typed will be diagnosed as incorrect until it is finished.
-\todo[inline]{Fix this in the code: do not suggest a diagnosis if the surrounding literal is where the cursor is.}
+\todo[inline]{Talk about how this is impossible to fix: on diagnosis time, all that is given is the text document, not the cursor position.}
 
 \subsection{Diagnosing clauses that have misaligned connectives}
 This is another problem that sounds simple in theory, once the above framework was developed, but turned out to have nuances in practice. Each clause is split into its lines, and the lines containing the keywords \codeword{and} and \codeword{or}, which have equal precedence, have their indentation compared. If two literals with different connectives have the same whitespace, then the precedence of the connectives is ambiguous.
@@ -71,14 +71,25 @@ Issue: spaces versus tabs
 \subsection{Diagnosing type mismatches}
 
 \subsubsection{Feature Overview}
+Although not part of the editor's requirements, the Logical English development team wanted a way to introduce experimental support for typed terms. The argument labels in templates would give the type of their argument. This feature would be used for finding type errors in multiple uses of the same term across a clause. Since this feature is experimental, it was not supposed to clash with any existing features or hinder the experience of a user who did not want this.
+\\
+\\
+The way I chose to implement this feature was to have type checking turned off by default, only being turned on with an explicit \codeword{type checking: on} comment. The type hierarchy was also designed to be as minimal as possible. 
+\todo[inline]{Move this discussion to Requirements section.}
 
 \subsubsection{Initial design: flat type hierarchy}
-Problematic with default templates, e.g. `*a thing* is *a thing*'
+When experimenting with implementing this feature, I first implemented type checking before implemnting a type hierarchy. In each clause, the literals were extracted, and, using the document's templates, the terms were extracted from each literal. These terms were typed, but there was no notion of sub-type or super-type. If two terms were found that had the same name but different types, a type mismatch error message was generated.
+\\ 
+\\
+This design was a lot more inconvenient to use than I expected, with many more surprising error messages being generated. This was mainly because of the default templates, and for two reasons. Firsly, since the default templates are very broad, they use placeholder type names, such as \codeword{A}, \codeword{B}, \codeword{C}, \codeword{thing}, et cetera. Ths caused problems for two reasons. Firstly, the type names clashed with the more specific type names found in real-world Logical English examples, if they were used together. Secondly, the type names often clashed amoungst themselves: take, for example, the template \codeword{*an A* appended to *a B* gives *a C*}, and the literal \codeword{[] appended to the list gives the list}. Here \codeword{the list} is both of type \codeword{B} and \codeword{C}.
+\todo[inline]{Cite the default templates, or at least, talk about them in the LE specification.}
+The solution to the first problem could only be resolved through a type hierarchy, making sure that the types used in the default templates would be super-types of whatever is used in more specific templates. However, the solution to the second problem was immediately resolvable: rename the types. All general type names such as \codeword{A}, \codeword{B}, \codeword{C} et cetera were renamed to \codeword{thing}.
 
 \subsubsection{Diagnosing with a type hierarchy}
-How a type hierarchy is written in LE
-\\ 
-How types are checked if they are compatible
+First, the type tree is read from the document under the header \codeword{the type hierarchy is:}. Parsing a text version of a tree is a well-known algorithmic problem.
+\todo[inline]{Cite the solution.}
+Now instead of simply checking whether two type names are equal, the two types are checked to see if one is a subtype of the other. Since types are rerpesented in a tree, this is a simple tree search problem to see whether either type node has a child node with the same name as the other type.
+\todo[inline]{Cite the solution.}
 %
 %
 %
@@ -87,13 +98,19 @@ How types are checked if they are compatible
 \todo[inline]{Research this in more detail}
 
 \subsection{Fixing a lack of template for literals}
-
-\subsubsection{Feature Overview}
-Explain and justify why a single template is generated from all template-less literals. 
-
 \subsubsection{Template Generation using Least General Geneneralisation}
+The first candidate template is generated according to the principle of least general generalisation. This is a principle from Logic-Based Learning which states how to generate a predicate that matches a set of given instantiations of the predicate, that is no more general than is necessary to match all of them.
+\todo[inline]{Research and describe this more.}
+The way this is done in the editor is as follows. Each literal is split into a list of space-separated words. It is assumed that there is a common template which matches all the literals. In the initial design, the predicate words were identified as the intersection of all the words. This criteria is slightly refined, and will be discussed later.
+\\ 
+\\
+Having found all of the predicate words, the terms of the first literal are identified as the words that are not predicate words. Knowing both the predicate words and the terms of the first literal, I then generate a template that matches this. If this same template matches all the other literals, then it is returned.
+\todo[inline]{Write up the algorithm.}
 
 \subsubsection{Template Refinement from the re-use of terms}
-Justify why this is done locally inside the clause.
+It was often the case that the least general generalisation was not enough to generate an accurate template. Either there were too few example literals, or the examples did not vary every term. In trying to fix this problem, I noticed that I was not exploiting the context(i.e. the clause) in which the literal was written. If a literal borrows a term from another literal, then we know about that term, and can generalise it into a variable.
+\\
+\\
+This was done by giving the \codeword{Template} class a method to generate a more general template by generalising a given term into a variable. Applying this method successively to all the surrounding terms that feature in each template-less literal gave much more accurate templates. This also allowed a single literal to be generalised into a template -- a feature that is impossible with least general generalisation. This also told us the type to place inside the template, since the type of each term is known.
 
 \end{document}
