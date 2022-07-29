@@ -128,44 +128,7 @@ The user must be informed if they make one of two types of errors:
 This feature was not a strict requirement, but was desirable. When the user writes a literal that does not match a template, making error $(1)$ above, an option should appear for the editor to supply a template that matches the literal. This feature is desirable, not required, in that it was not clear at the outset when it is possible to algorithmically generate such a template, nor how difficult such an algorithm would be to implement.
 
 \subsubsection{Type Checking}
-This feature was a suggestion, only to be explored if there was sufficient time once the other features had already been implemented. 
-
-
-\section{Meeting the Requirements}
-Here I describe and justify my approach to meeting the requirements.
-\\
-\\
-\subsection{Syntax Highlighter}
-
-
-\section{Project Implementation Plan}
-The syntax highlighter will be implemented using TextMate grammar, since this has the widest range of editor support.  The Language Server will be implemented in TypeScript using the \texttt{vscode-languageserver} NPM package. This package has clear, thorough documentation which describes multiple example language servers. In testing, both the language server and syntax highlighter will be tested on a Visual Studio Code language client. This choice is made due to Visual Studio Code's powerful debugging features for language plugins.
-
-\subsection{Project Timeline}
-The timeline for developing and testing these two tools is below. This plan has us completing both the template generation and type error detection features of the language server. However, if any large problems arise, I will prioritise solving these over working on type error detection.
-\\
-\begin{tabularx}{\textwidth}{|l|X|}
-    \hline
-    6th June - 10th June & 
-    Write a TextMate grammar for Logical English.
-    \\
-    \hline
-    13th June - 17th June & 
-    Using the Visual Studio Code documentation \cite[]{vsc_langserver_features}, create a proof-of-concept language server with dummy error highlighting, warning highlighting, and code generation.
-    \\ \hline
-    20th June - 25th June & 
-    In the language server, convert Logical English templates to a suitable TypeScript representation. \newline
-    Using this representation, determine whether a Logical English rule conforms to a template.
-    \\ \hline
-    27th June - 8th July & 
-    Create a template from first two, then arbitrarily many, rules.
-    \\ \hline
-    11th July - 23rd July & 
-    Create a TypeScript representation for Logical English types, to be used by the language server. \newline
-    Use this type representation in to augment the template representation with types of the template's variables. \newline
-    Consider types when determining whether a rule conforms to a template.
-    \\ \hline
-\end{tabularx}
-\todo[inline]{Talk about types and type hierarchy. Talk about what is required.}
-\todo[inline]{Talk about how lax the requirements were that were given, and how I suggested most of the features, or they were agreed on through dialogue.}
+This feature was a suggestion, only to be explored if there was sufficient time once the other features had already been implemented. The Logical English development team were considering introducing a type system. This type system would assign a type to the term of each literal. This would be done according to the argument name given in the template, which would now be interpreted as the type name. This type system would be used to check for type errors, where a term of one type re-appears in a literal where it would have to have a different type. There would also be a type hierarchy, where one type could be a sub-type of another.
+\todo[inline]{Move this discussion to the Logical English section}
+The proposal was for me to explore implementing such a type system, perhaps with a type hierarchy. If implemented, it could perhaps be used to check for type mismatch errors, notifying the user in the same way as the other two kinds of errors above. 
 \end{document}

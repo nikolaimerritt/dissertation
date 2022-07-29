@@ -1,11 +1,68 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
 \chapter{Design}
-\section{Design Methodoligy}
+\section{Requirements Approach}
+\subsection{Why a Language Server?}
+When deciding what type of language extension to create, we surveyed a variety of options. The SWISH platform in which Logical English is currently edited is built on Codemirror, a JavaScript framework for creating web-based code editors. Thus writing the language server entirely in Codemirror was an obvious choice. However, at the time, the SWISH platform was written in Codemirror 5, but the maintainers were considering migrating to Codemirror 6. Prematurely writing the language extension in Codemirror 6 would be too much of a risk, as migration was uncertain, and users would not be able to test the extension until it was migrated. However, using Codemirror 5 would also have been a bad idea, as migration to Codemirror 6 would involve a large number of breaking changes \cite{codemirror_migration}, such as getting the position of text in a document, and making changes to the document, being entirely restructured.
+\\ 
+\\ 
+This prompted us to then consider Monaco. \todo[inline]{Why were we considering Monaco? How would Monaco have worked with SWISH?}.
+\\ 
+\\ 
+In the end, we found that what we really needed was a language server. This language server would be editor-agnostic, meaning that one language server would be able to connect to any front-end that supports the Language Server Protocol. This includes online editors such as Codemirror 6 \cite{codemirror_6_language_server} and Monaco \cite{monaco_language_server}, along with desktop editors such as Visual Studio Code \cite{vsc_langserver_docs}, Visual Studio \cite{visual_studio_language_server} and IntelliJ \cite{intellij_language_server}, some of the most popular code editors \cite{ide_rankings}. Logical English is still in an early stage of development, and producing a language server would give us the flexibility needed to branch out to all kinds of coding environments.
+
+\subsection{Why a Visual Studio Code extension?}
+I had two requirements when searching for the right client for the language server. I was looking to maximise both the amount of features that the client supported, and the popularity of the language client. 
+\\
+\\
+Surprisingly, the latter proved to be a lot easier to judge than the former. Stack Overflow, one of the most popular websites for the programming community, conducts global surveys every year monitoring the programming commnity's trends. In 2021, out of over 80,000 responses, Visual Studio Code had ``a significant lead as the IDE of choice across all developers", with over 70\% of responders using the IDE  \cite{ide_rankings}. This made Visual Studio Code a clear choice in terms of popularity. 
+\\
+\\
+However, I also considered two runner-ups IDE in the survey, Visual Studio and IntelliJ, with 29\% and 33\% of responders using the IDEs. As seen above, all three IDEs support language servers. However, unlike Visual Studio Code, Visual Studio and IntelliJ are quite complex, heavyweight IDEs, both with much a larger application size, slower performance, longer install time, and complex user interface. Since a large part of the target audience of Logical English is logicians and lawyers, neither of which are in general familiar with enterprise programming, I reasoned that having to use enterprise-programming IDEs would be inconvenient and off-putting. 
+\\
+\\
+Visual Studio Code has strong support for using language servers following the Language Server protocol. Although I could only truly verify this after having built a language server with a Visual Studio Code client, there were many indications of this that were available during my research. Microsoft's extensive documentation of the features available with a Visual Studio Code client, \cite{vsc_langserver_features}, along with the wide list of language servers built for Visual Studio Code \cite{open_source_language_servers}. 
+\todo[inline]{Pick a language server from the list and explain how it has all the required features.}
+
+
+\subsection{Why a separate Syntax Highlighter?}
+Although language servers can mark code for highlighting (and, indeed, mine does), it is common to delegate all the syntactic highlighting to the client. This is done for efficiency reasons. Syntactic highlighting does not need a complex algorithm to parse the document, and it would be a waste of resources to do so: instead, it can be done through identifying parts of the document using regular expressions. 
+%
+%
+%
+\section{Technology Stack}
+\subsection{Language Server}
+Before any work could be done, I needed to decide on which technology stack to use. This was dictated mainly by the programming language involved. The following features were needed:
+\\
+\\
+\textbf{Linux, Windows and Mac OS support} \\
+The language server had to be able to connect to offline editors, and therefore run on user's desktops. This meant that the most up-to-date editions of the three most popular operating systems -- Linux, Windows and Mac OS X -- had to be supported.
+\\
+\\
+\textbf{Support for strong typing} \\
+Since creating a language server is a large and complex project, I needed to be using a langauge with strong typing in order to both avoid mistakes and receive context-aware support from my IDE.
+\\
+\\
+\textbf{A Language Server Protocol API} \\
+Writing Language Server Protocol requests manually would be inefficient, time-consuming and a potential cause of errors. A library that abstracted away the exact layout and content of Language Server Protocol requests would aid productivity.
+\\ 
+\\
+These last two requirements only left two libraries: the \\ 
+\texttt{Microsoft.VisualStudio.LanguageServer}, written for C\# \cite{visual_studio_language_server}, or \\ 
+\texttt{vscode-languageserver}, written for TypeScript \cite{vsc_langserver_docs}. Since these libraries are were created by Microsoft \footnote{This should not be surprising, as Microsoft also created the Language Server Protocol.}, they are structured quite similarly. 
+\\
+\\
+In the end, the TypeScript library was chosen over the C\# library. Both libraries being quite similar, this decision was made because TypeScript was better suited for the task than C\#. The Language Server Protocol communicates using JSON, and TypeScript can handle JSON more fluidly than C\# can. Useful features include destructuring JSON, giving JSON objects unique types based on their fields, and treating JSON objects as implementing interfaces that have the same fields. This decision being made, the resulting technology stack was TypeScript run locally using \codeword{Node.JS}. 
+
+\subsection{The Syntax Highlighter}
+Since the syntax highlighting is specified in a single JSON document, the technology stack required was minimal. Rather than writing the JSON document directly, I chose to write the TextMate grammar in a YAML document, from which the JSON document was then automatically generated using the command \codeword{yq} \cite{yq_repo}. This was done because of the length of the JSON required: YAML documents are easier to read due to their less cluttered syntax, with the scope of objects being determined by whitespace rather than brackets. Writing regular expressions is also easier in a YAML document. Regular expressions feature many backslashes: in JSON, unlike in YAML, these backslashes need to be escaped with another backslash. Regular expressions are confusing enough to read as they are -- I did not need any added confusion by having to parse escaped backslashes in my head!
+
+\subsection{The Language Client}
+Language servers written using the \texttt{vscode-languageserver} library connect seamlessly to visual studio code language clients written using the \texttt{vscode-languageclient} package. Thus, my main method of day-to-day testing was done using a local visual studio code client. I could be assured that all errors I found were due to the language server itself, not the connection, since the two libraries were built with each other in mind. 
+%Tests were also done using a Codemirror 5 client that ran locally in the browser, to see which features carried over to Codemirror 5.
+%
+%
+%
+\section{Design Methodology}
 \todo[inline]{Research more about the methodology I used of low-state, functional-based class, and alternate methodologies}
-%
-%
-%
-
-
 \end{document}
