@@ -1,6 +1,51 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
 \chapter{Implementation}
+\section{Data Representation}
+\subsection{Description of Problem}
+When editing a document, the initial task of the editor is to extract the document's literals and templates. It was clear early on that this is the fundamental problem: the better the representation the editor has for the literals and templates, the easier all subsequent work on them will be. It was important to design representations that:
+\begin{itemize}
+    \item was lightweight: literals and templates would be reloaded every time the document received an update
+    \item focused on the semantics, making it easy to perform queries and operations based on the meaning
+    \item did not stray too far from the Logical English syntax, as converting to Logical English should be simple
+    \item were not too distinct from each other: templates and literals are often used together, such as querying whether a literal matches a template
+\end{itemize}
+Based on the last requirement, I focused on first desgining a representation for templates, and then used those ideas to design a similar rerpresentation for literals. 
+
+\subsubsection{Initial Template Design}
+Initially, the most obvious and simple design for a template was as a list of tokens, called `elements' \footnote{This is done to distinguish these tokens from the tokens used in highlighting the document}, each element being a string. These elements would either be a type, such as \codeword{*a person*}, or text that lies between the types, such as \codeword{goes shopping}. This list of elements was easily acheived by splitting a Logical English template by a regular expression that identified substrings of the form \codeword{*a _*} or \codeword{*an _*}. 
+\\
+\\
+Although the design was lightweight and easy to implement, the more I used this design the clearer it became that it did not do enough work for me. Lots of duplicate work had to be re-done whenever this representation was used: specifically, identifying which elements are types and which are not, and filtering the list of elements to obtain all the types, or all the surrounding text. 
+\\ 
+\\
+It became clear that, effectively, the list consisted of two different types of items: types, on the one hand, and surrounding text on the other. Based on this, the awkwardness of use, and the fact that I had plans to give types a richer structure, it was clear that the design needed upgrading, and it was also clear how.
+
+\subsection{Element Representation}
+Thus the obvious level of abstraction was to abstract these two different kinds of substrings into two different types.
+
+The class \codeword{Type} was created to represent the type of a template argument. The class \codeword{Surrounding} was created to represent surrounding text that lies between types. As per my design philosophy, these are both lightweight types that simply store immuntable data.
+
+\subsection{Literal Representation}
+Once I had solved the \codeword{Template} design problem, I applied the same principles to creating a design for the literals. I found throughout creating the editor that literals did not need as elaborate a design as templates: in fact, they did not even need their own class. In broad terms, a template acts on literals -- mainly through extracting terms, or checking whether a given literal matches its form. So, while templates have rich functionality, literals are passive objects that are acted on. Thus there is no need for a literal class with methods or mutating state.
+\\
+\\
+Like a template, a Logical English literal consists of text that is either a typed term, or is surrounding text. Like with templates, the natural representation is simply a list of \codeword{LiteralElement} elements, where a \codeword{LiteralElement} is either a \codeword{Surrounding} or a \codeword{Term}.
+
+\subsubsection{Term}
+In logical english, a term is a value with an associated type. The natural data structure to represent this is therefore:
+\begin{lstlisting}
+    class Term:
+        name: string
+        type: Type
+\end{lstlisting}
+with each of these properties being immutable. It is important that the \codeword{type} property is a reference to the corresponding type, not a copy. This is crucial to see if two uses of the same Logical English term have conflicting types.
+
+\subsection{Section Representation}
+Along with representing Logical English data, it was also important to be able to refer to where the data is in the document. This is crucial in highlighting, providing diagnostic error underlines and identifying the current literal that the user is typing. Attaching position data to these representations themselves was a bad idea for two reasons: by the design principle of concerns \todo[inline]{Name the design principle}, the representations are ``abstract'' in that they represent what a logical english construct is, not where it happens to lie in a document. Further, it is important to know where bodies of raw text (i.e. \codeword{string}s) are: these, of course, do not have position data.
+
+\subsubsection{ContentRange$<$T$>$}
+This is a generic type, allowing the type to store any kind of data in its field. For a given type \codeword{T} (a \codeword{string}, a \codeword{Template} or any other kind of content), a \codeword{ContentRange<T>} has a \codeword{content: T} field, and a \codeword{range} field. The \codeword{range} field stores the beginning and the end of the content, in the \codeword{(line number, character number)} form that \codeword{vscode-langaugeserver} uses. Note that \codeword{T} could be any type whatsoever, including types that do not make sense.
 %
 %
 %
