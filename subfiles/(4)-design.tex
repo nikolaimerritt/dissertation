@@ -64,5 +64,22 @@ Language servers written using the \texttt{vscode-languageserver} library connec
 %
 %
 \section{Design Methodology}
-\todo[inline]{Research more about the methodology I used of low-state, functional-based class, and alternate methodologies}
+The Language Client and Syntax Highlighter needed very little design. Hence the design discussed in this section will concern the syntax highlighter.
+\subsection{Initial Design Ideology}
+My initial design ideology was to have global variables which would store the document's current type hierarchy and current collection of templates. These two values would be recalculated whenever the document received an update, and would be used, via a read-only view, whenever they were needed in semantic highlighting, auto-completion, error diagnosis and quick fix suggestions. On first consideration this seemed to be the most practical design. Re-calculating these two objects whenever the document received an update would ensure that these objects would only be re-calculated when necessary. Since reading the document and parsing its content was anticipated to be an expensive operation (compared to providing the end-user functionalities with what was parsed), ensuring that these operations only happened when necessary was anticipated to be important for performance. Further, using a read-only view to access these global objects should avoid bugs, even if the objects are accessed throughout the codebase.
+\\
+\\
+However, once I had set up a language server with minimal examples of each type of feature, it was clear that this design approach would lead to concurrency issues. The server interacts with the document not through one signle entry point, but through multiple events: one event for each type of functionality. For example, a request for code completion could occur while the server is updating the list of templates. If the list of templates has not finished updating, this could lead to incorrect code completion.
+\todo[inline]{Does the server run on a single thread? (Still an issue if code completion requested slightly before document update signal gets received). Or does each callback get run on its own thread?}
+This was an issue that was thoroughly explored in the Operating Systems course. One solution that was taught was to use locks to ensure that the list of templates or type tree is not accessed halfway through being updated. However, this would not prevent the issue of (for example) the list of templates being updated, but a semanic highlighting request being received before the document update signal is received. 
+\todo[inline]{Research more about this issue of on request being received before another. What is it caled?}
+\\
+\\
+The only way to avoid such an issue is for the templates and type tree to be updated every time before a request is processed. This would now make templates and type tree being constant values, local to each request. Although this would resul in duplicate work in the case that the document does not change between requests, this is the only way to avoid the above issue. This lead me to research design where there is a lack of mutable state.
+
+\subsection{Design Ideology}
+The overall design ideology was mainly guided by the principles outlined in ``Java to Kotlin: A Refactoring Guidebook" by Duncan McGregor and Nat Pryce (first edition, published by O'Reily Media Incorporated). Although taking examples from refactoring Java code into Kotlin, the book outlined design principles based on the ideas of minimising mutable state in classes and using `pure', stateless functions. 
+\\
+\\
+McGregor and Pryce give two relevant scenarios in which avoiding mutable state in classes and functions is benefitial. Firstly, stateless objects and functions (here, ``stateless" is shorthand for not having mutable state) 
 \end{document}
