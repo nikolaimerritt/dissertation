@@ -3,12 +3,13 @@
 \begin{document}
 \chapter{Introduction}
 \section{Abstract}
-Language Extensions for code editors are a crucial tool in writing code quickly and without errors. In this project, I create a language extension for the logical, declarative programming language Logical English. The language extension highlights the syntactic and semantic features of Logical English, identifies errors, and generates ``boilerplate'' code to fix them. The language extension uses the Language Server Protocol and is therefore cross-editor. It is evaluated when connected to the Visual Studio Code and Codemirror IDEs.
+Language Extensions for code editors are a crucial tool in writing code quickly and without errors. In this project, I create a language extension for the logical, declarative programming language Logical English. The language extension highlights the syntactic and semantic features of Logical English, identifies errors, generates ``boilerplate'' code to fix them. The language editor also extends the language of Logical English through type checking the use of terms, via a type hierarchy. The language extension uses the Language Server Protocol and is therefore cross-editor. It is evaluated when connected to a Visual Studio Code front-end.
 
 \section{Motivation: why a new editor?}
-Logical English is a relatively new programming language, first introduced in late 2020 \cite{logical_english} \todo{is this where LE was first introduced?}. Although Logical English has an online editor hosted on the SWISH platform \cite{swish_editor}, the editor is not user-friendly. SWISH is primarily a Prolog editor, and so any Logical English code has to be written in a long string that is, in the same file, passed to a Prolog function to be interpreted. 
+Logical English is a relatively new programming language, first introduced in late 2020 \cite{logical_english} \todo{is this where LE was first introduced?}. Although Logical English has an online editor hosted on the SWISH platform \cite{swish_editor}, the editor is not user-friendly. SWISH is primarily a Prolog editor, and so any Logical English code has to be written in a long string that is an argument to a Prolog function. 
 \\ 
 \\ 
-This has significant drawbacks: since Logical English code is written in a Prolog string, the Logical English content cannot be treated by the editor as a standalone program. This means that it can receive no syntax highlighting, error detection, or code completion features beyond that of a Prolog string. Since these features are essential for productivity \todo[inline]{find a source here about IDEs vs Notepad}, a new editor was needed that was custom-built for writing Logical English.
+This has significant drawbacks. Since Logical English code is written in a Prolog string, the Logical English content cannot be treated by the editor as a standalone program. This means that it can receive no syntax highlighting, error detection, or code completion features beyond that of a Prolog string. Since these features are essential for productivity, a new editor was needed that was custom-built for writing Logical English.
+\todo[inline]{find a source here about IDEs vs Notepad}
 
 \end{document}

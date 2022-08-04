@@ -2,133 +2,179 @@
 
 \begin{document}
 \chapter{Project Requirements}
-In this section I talk about what LE is, and what my requirements are.
+This chapter introduces the features of Logical English, then relates them to the functional requirements of the editor.
 \section{Logical English}
-Logical English is a logical and declarative programming language. It is written as a structured document, with a syntax that has few symbols and which closely resembles natural English. \cite{logical_english}.
+Logical English is a logical and declarative programming language. Logical English is an example of a controlled natural language; it is written as a structured document, with a syntax that has few symbols and which resembles natural English. \cite{logical_english}.
 
-\subsection{An overview}
-Logical English's main goal is to find which literals are true and answer a given question. A literal is a statement, which can be true or false, and cannot be broken down into any smaller statements. Examples include:
-\begin{lstlisting}
+\subsection{A brief overview}
+\subsubsection{Atomic Formulas}
+Logical English's main goal is to find which atomic formulas are true and answer a given question. An atomic formula is a statement, which can be true or false, and cannot be broken down into any smaller statements. Examples include:
+\begin{lstlisting}[language={LE},caption={Examples of atomic formulas in Logical English.},label={le:atomic formulas}]
     fred bloggs eats at cafe bleu.
     emily smith eats at a cafe.
-    cafe bleu sells sandwitches.
+    cafe bleu sells sandwiches.
 \end{lstlisting}
-Literals may have variables, such as \codeword{a cafe}: these will be discussed further.
-\\ 
-\\
-A Logical English document is chiefly made up of clauses. Clauses are rules that start with a literal and determine when the literal is true. Examples include:
-\begin{lstlisting}
+As in \ref{le:atomic formulas}, atomic formulas may include constants, such as \codeword{fred bloggs} and \codeword{cafe bleu}, or variables, such as \codeword{a cafe}. These will be discussed further.
+
+
+\subsubsection{Clauses}
+Clauses are rules, starting with an atomic formula, that determine when the atomic formula is true. Examples include:
+\begin{lstlisting}[language={LE},label={le:clauses}]
     fred bloggs eats at cafe bleu if
         fred bloggs feels hungry.
 
     emily smith eats at a cafe if
         emily smith feels hungry
-        and the cafe sells sandwitches.
+        and the cafe sells sandwiches.
 
     emily smith feels hungry.
 \end{lstlisting}
-In the second example, \codeword{a cafe} is a variable. This means that if we were later given \codeword{cafe jaune sells sandwitches}, then \codeword{emily smith eats at cafe jaune} would be true.
+In the second example, \codeword{a cafe} is a variable. This means that if we were later given 
+\begin{lstlisting}[language={LE}]
+    cafe jaune sells sandwitches
+\end{lstlisting}
+then \codeword{emily smith eats at cafe jaune} would be true.
+
+
+\subsubsection{Templates}
+Templates are used for Logical English to understand which words in an atomic formula correspond to terms (such as \codeword{emily smith} and \codeword{a cafe}), and which words are merely part of the statement (such as \codeword{eats at} or \codeword{feels hungry}). 
 \\
 \\
-Templates are used for Logical English to understand which words in a literal correspond to terms (such as \codeword{emily smith} and \codeword{a cafe}), and which words are merely part of the statement (such as \codeword{eats at} or \codeword{feels hungry}). A literal's template is the literal with each of its terms replaced with placeholders. These placeholders start with \codeword{a} or \codeword{an} and are surrounded by asterisks. For example, the literals \codeword{fred bloggs eats at cafe bleu} and \codeword{emily smith eats at a cafe} both share the corresponding template
-\begin{lstlisting}
-    a person eats at a cafe.
-\end{lstlisting} 
-In Logical English, each literal needs to have a corresponding a template.
+An atomic formula's template is written as the atomic formula with each of its terms replaced with placeholders. These placeholders start with \codeword{a} or \codeword{an}, and are surrounded by asterisks. For example, the template
+\begin{lstlisting}[language={LE},caption={A template in Logical English},label={le:template}]
+    *a cafe* serves *an item* from *a time* to *a time*.
+\end{lstlisting}
+is a template for the atomic formulas
+\begin{lstlisting}[language={LE}]
+    cafe jaune sells crepes from breakfast to noon.
+\end{lstlisting}
+This template allows us to identify the terms as \codeword{fred bloggs}, \codeword{cafe bleu}, \codeword{emi}. In Logical English, every atomic formula must have a corresponding a template.
 
 \subsection{The structure of a Logical English program}
-Now that literals, clauses and templates have been explained, we can examine a complete Logical English program. An example is provided in Listing \ref{le:short}.
-\begin{lstlisting}[caption={A short Logical English program.},label={le:short}]
-    the templates are:
-    a person travels to a place.
-    a place has an amenity.
-    
-    the knowledge base Travelling includes:
-    fred bloggs travels to a holiday resort if 
-        the holiday resort has swimming pools.
-    
-    emily smith travels to a museum if
-        the museum has statues 
-        and the museum has ancient coins.
-    
-    scenario A is:
-    the blue lagoon has swimming pools.
-    the national history museum has statues.
-    
-    query one is:
-    which person travels to which place.
+Now that atomic formulas, clauses and templates have been explained, we can examine a complete Logical English program. An example is provided in Listing \ref{le:short}.
+\begin{lstlisting}[language={LE},caption={A short Logical English program.},label={le:short}]
+the templates are:
+*a person* travels to *a place*.
+*a place* has *an item*.
+
+the knowledge base Travelling includes:
+fred bloggs travels to a holiday resort if 
+    the holiday resort has swimming pools.
+
+emily smith travels to a museum if
+    the museum has statues 
+    and the museum has ancient coins.
+
+scenario A is:
+the blue lagoon has swimming pools.
+the national history museum has statues.
+
+query one is:
+which person travels to which place.
 \end{lstlisting}
 
 \subsubsection{Templates}
-The program starts with the template section, starting with \codeword{the templates are:}, in which the literals' templates are defined. 
+The program starts with the template section, with header \codeword{the templates are:}, in which the templates are defined. 
 
 \subsubsection{Knowledge base}
-The program's clauses are then given in the knowledge base section. The knowledge base section can either start with \codeword{the knowledge base includes:}, or it can be given a name, in which case it starts with \codeword{the knowledge base <name> includes:}. Clauses are written in order of dependecy: if clause A is referenced by clause B, then clause A must be written before clause B.
+The program's clauses are given in the knowledge base section. The knowledge base section can either start with the header \codeword{the knowledge base includes:}, or it can be given a name, in which case it starts with the header \codeword{the knowledge base <name> includes:}. 
+\\
+\\
+Clauses are written in order of dependency: if clause A is referenced by clause B, then clause A must be written before clause B.
 \\ 
 \\
-Clauses begin with exactly one head literal, which is the literal that is logically implied by the rest of the clause. If a clause consists of simply a single head, then the head is taken to be always true. Otherwise, the head literal be followed by an \codeword{if}, then a number of body literals, separated by the connectives \codeword{and}, \codeword{or}, or \codeword{it is not the case that}.
-\\ \\
-The precedence of these connectives is clarified by indentation: connectives that have higher precedence are indented further. For example, \texttt{(A and B) or C} is written
-\begin{lstlisting}
+Clauses begin with exactly one `head', which is the atomic formula that is logically implied by the rest of the clause. If a clause is simply a head, then the head is taken to be always true. Otherwise, the head is followed by the keyword \codeword{if}, then a number of `body' atomic formulas. These body atomic formulas together determine when the head atomic formula is true, through the use of the connectives \codeword{and}, \codeword{or}, or \codeword{it is not the case that}.
+\\ 
+\\
+The precedence of these connectives is clarified by indentation. Connectives that have higher precedence are indented further. For example, \texttt{(A and B) or C} is written
+\begin{lstlisting}[language={LE}]
     A
         and B
     or C.
 \end{lstlisting}
 and \texttt{A and (B or C)} is written
-\begin{lstlisting}
+\begin{lstlisting}[language={LE}]
     A
     and B
         or C.
 \end{lstlisting}
 The connective \codeword{it is not the case that} always takes highest precedence. However, there is no default preference over \codeword{and} and \codeword{or}: it is an ambiguity error to write
-\begin{lstlisting}
+\begin{lstlisting}[language={LE}]
     A 
     and B
     or C.
 \end{lstlisting}
-In a clause, a variable is introduced for the first time by having its name preceed with \codeword{a} or \codeword{an}. Subsequent uses of the variable must then start with \codeword{the}.
+Like in \ref{le:short}, a variable is introduced for the first time by beginning its name with \codeword{a} or \codeword{an}.  Subsequent uses of the variable must then start with \codeword{the}. Variables quantify over all the terms that are used in the knowledge base.
 
 \subsubsection{Scenarios}
-Various scenarios can optionally be given. Scenarios contain literals that are used when running a query. Scenarios must have a name, and must start with 
+Various scenarios can optionally be given. Scenarios contain atomic formulas that are taken to be true when running a query. Scenarios must have a name, and must start with 
 \codeword{scenario <name> is:}. 
 
 \subsubsection{Queries}
-The final sections of a Logical English program are the queries. Like scenarios, a query must have a name, and must start with \codeword{query <name> is:}. A question in a query corresponds to a template, with the terms to be found written as placeholders that start with \codeword{which}. 
-\\ \\ 
-In listing \ref{le:short}, running query one with scenario A yields
-\codeword{fred bloggs travels to the blue lagoon.} Query one could also be run with no scenario supplied, but doing so would yield no answer.
+The final sections of a Logical English program are the queries. A query consists of one or more questions that the Logical English engine seeks to answer. These questions ask for which terms make an atomic formula true. The terms that the query is to look for are written as placeholders that start with \codeword{which}. 
+\\
+\\
+For example, running query one with scenario A from \ref{le:short}
+\begin{lstlisting}[language={LE}]
+    scenario A is:
+    the blue lagoon has swimming pools.
+
+    query one is:
+    which person travels to which place.
+\end{lstlisting}
+gives the answer
+\begin{lstlisting}[language={LE}]
+    fred bloggs travels to the blue lagoon.
+\end{lstlisting}
+Query one could also be run with no scenario supplied, but doing so would yield no answer.
 
 \newpage
 \section{Project Requirements}
-In this section I describe the given requirements that my project was to meet. These were quite non-specific, and allowed for a lot of room in my approach to meeting them. My approach to meeting these requirements is discussed in the following section.
+In this section I describe the requirements that my project was to meet. These were decided on through discussions between myself and my supervisors. The requirements were based purely on the user functionality that the editor provides. This allowed for a lot of room in my approach to meeting them, which is discussed in the following section.
 \\
 \\
-The project will consist of developing two tools for Logical English: a Syntax Highlighter and a Language Server. These two tools will be cross-editor, meaning that they can be used with many of the most popular programming editors with minimal configuration.
+The editor must consist of three tools to assist Logical English: a Syntax Highlighter, a Language Server and a Language Client. The syntax highlighter and language server will be cross-editor and cross-platform. This requirement meant that they can be used with many of the most popular programming editors on various operating systems with minimal configuration. Out of the three, it is the language server that contains the vast majority of the features.
+
+\subsection{Language Client}
+The user uses the language client to interact with the features provided by the language server and syntax highlighter. Therefore, the language client must convey changes in the document to the syntax highlighter and language server. The language client must implement the responses from the language server and syntax highlighter for the user to see and use.
 
 \subsection{Syntax Highlighter}
-The Syntax Highlighter must identify and allow to highlight both micro-features of Logical English such as keywords and variable names, and macro-features such as section headers.
+The syntax highlighter must identify grammatical features of Logical English in a given document. This must be done in a way that the language client can highlight the document. It must identify both micro-features such as keywords and variable names, and macro-features such as section headers.
 
 \subsection{Language Server}
-The language server must provide three functionalities to help the user write Logical English documents: code completion, error diagnostics, and suggested error fixes. There were no concrete feature requirements given at the outset. After researching and explaining what is reasonably possible, these three requirements were agreed on through discussion between myself and my supervisors during the early to middle stages of creating the editor. 
+The language server must provide three functionalities to help the user write Logical English documents: code completion, error diagnostics, and suggested error fixes. 
+\\ 
+\\
+These requirements were not concrete at the outset. After researching and explaining what is reasonably possible, these three requirements were agreed on through discussion between myself and my supervisors during the early to middle stages of creating the editor. 
 \\
 \\
-If there was time, after the above three features had been implemented, it was suggested that I explore implementing a type-checking system in the editor.
+My supervisors and I suggested that if there was time, after the above three features had been implemented, I could explore implementing a type-checking system in the editor.
 
 \subsubsection{Code Completion}
-When a user is in the process of writing a literal, if the literal could match a template, an option must appear for the editor to fill in the remainder of the literal using the matching template.
+When a user is in the process of writing an atomic formula, if the atomic formula could match a template, an option must appear for the editor to complete the remainder of the atomic formula, using the form of the matching template.
 
 \subsubsection{Error Diagnostics}
-The user must be informed if they make one of two types of errors:
+The user must be informed if they make the following types of errors:
 \begin{enumerate}
-    \item if a literal is written that does not match any template 
-    \item if a clause is written where the precedence of the connectives is not made clear by appropriate indentation
+    \item a atomic formula has been written that does not match any template 
+    \item a clause has been written where the precedence of the connectives has not been not made clear by appropriate indentation
 \end{enumerate}
 
 \subsubsection{Suggested Error Fixes}
-This feature was not a strict requirement, but was desirable. When the user writes a literal that does not match a template, making error $(1)$ above, an option should appear for the editor to supply a template that matches the literal. This feature is desirable, not required, in that it was not clear at the outset when it is possible to algorithmically generate such a template, nor how difficult such an algorithm would be to implement.
+This feature was not a strict requirement, but was desirable. When the user writes a atomic formula that does not match a template, making error $(1.)$ above, an option should appear for the editor to write a new template that matches the atomic formula. This feature is not required since it was not clear at the outset when it is possible to algorithmically generate such a template, nor how difficult such an algorithm would be to implement.
 
 \subsubsection{Type Checking}
-This feature was a suggestion, only to be explored if there was sufficient time once the other features had already been implemented. The Logical English development team were considering introducing a type system. This type system would assign a type to the term of each literal. This would be done according to the argument name given in the template, which would now be interpreted as the type name. This type system would be used to check for type errors, where a term of one type re-appears in a literal where it would have to have a different type. There would also be a type hierarchy, where one type could be a sub-type of another.
-\todo[inline]{Move this discussion to the Logical English section}
-The proposal was for me to explore implementing such a type system, perhaps with a type hierarchy. If implemented, it could perhaps be used to check for type mismatch errors, notifying the user in the same way as the other two kinds of errors above. 
+This feature was a suggestion, only to be explored if there was sufficient time once the other features had already been implemented. 
+\\
+\\
+The Logical English development team were considering introducing a type system. This type system would assign a type to the term of each atomic formula. The type assigned would be according to the argument name given in the template, which would now be interpreted as the type name. There would also be a type hierarchy, where one type could be a sub-type of another. 
+\\
+\\
+This type system would be used to check for type errors. It would check for errors where:
+\begin{itemize}
+    \item an atomic formula contains a term $\tau$, where it is assigned the type $A$
+    \item another atomic formula contains the same term $\tau$, where it is assigned the type $B$
+    \item $A$ is not a sub-type of $B$, nor is $B$ a sub-type of $A$
+\end{itemize}
+The proposal was for me to explore implementing such a type system in the language server, that assigns a type to each term of an atomic formula according to the atomic formula's template. If implemented, it could be used to check for type mismatch errors, notifying the user of these errors. 
 \end{document}
