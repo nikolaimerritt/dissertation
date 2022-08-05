@@ -2,38 +2,47 @@
 \begin{document}
 \chapter{Implementation}
 \section{System Overview}
-\todo[inline]{Insert a diagram showing how the four features get processed and fed back to language client}
+\begin{figure}[h!]
+\centering
+\includegraphics[width = \linewidth]{./figures/le-editor.png}
+\caption{A diagram showing the overall structure of the Logical English editor.}
+\label{fig:logo}
+\end{figure}
+The overall structure of the editor is as follows. The user interacts with the editor through the language client. The language client takes on the rules of the syntax highlighter to highlight basic syntactic features of the user's document. The language client highlights semantic features of the document, along with presenting any code completions or quick fixes, by routinely polling the language server for this data. The language server presents diagnostics by requesting diagnostic data from the server whenever the user makes a change to the document.
 
 \section{Data Representation}
 \subsection{Description of Problem}
-When editing a document, the initial task of the editor is to extract the document's literals and templates. It was clear early on that this is the fundamental problem: the better the representation the editor has for the literals and templates, the easier all subsequent work on them will be. It was important to design representations that:
+When providing diagnostics, semantic highlighting, code completion or quick fixes, the initial task of the language server is always to extract the document's literals and templates. It was clear early on that this is the fundamental problem: the better the representation the editor has for the literals and templates, the easier all subsequent work on them will be. It was important to design representations that:
 \begin{itemize}
-    \item was lightweight: literals and templates would be reloaded every time the document received an update
-    \item focused on the semantics, making it easy to perform queries and operations based on the meaning
-    \item did not stray too far from the Logical English syntax, as converting to Logical English should be simple
+    \item were lightweight: literals and templates would be reloaded every time the document received an update
+    \item focused on semantics: it should be easy to perform queries and operations based on a literal's or template's meaning
+    \item did not stray too far from the Logical English syntax: converting to and from Logical English should be simple
     \item were not too distinct from each other: templates and literals are often used together, such as querying whether a literal matches a template
 \end{itemize}
-Based on the last requirement, I focused on first desgining a representation for templates, and then used those ideas to design a similar rerpresentation for literals. 
+Based on the last requirement, I could focus on first designing a representation for templates, and then use those ideas to design a similar representation for literals. 
 
 \subsubsection{Initial Template Design}
 Initially, the most obvious and simple design for a template was as a list of tokens, called `elements' \footnote{This is done to distinguish these tokens from the tokens used in highlighting the document}, each element being a string. These elements would either be a type, such as \codeword{*a person*}, or text that lies between the types, such as \codeword{goes shopping}. This list of elements was easily acheived by splitting a Logical English template by a regular expression that identified substrings of the form \codeword{*a _*} or \codeword{*an _*}. 
 \\
 \\
-Although the design was lightweight and easy to implement, the more I used this design the clearer it became that it did not do enough work for me. Lots of duplicate work had to be re-done whenever this representation was used: specifically, identifying which elements are types and which are not, and filtering the list of elements to obtain all the types, or all the surrounding text. 
+Although the design was lightweight and easy to implement, the more I used this design the clearer it became that it did not do enough work for me. Lots of duplicate work had to be re-done whenever this representation was used: specifically, identifying which elements are types, and filtering the list of elements to obtain each type, or each part of surrounding text. 
 \\ 
 \\
 It became clear that, effectively, the list consisted of two different types of items: types, on the one hand, and surrounding text on the other. Based on this, the awkwardness of use, and the fact that I had plans to give types a richer structure, it was clear that the design needed upgrading, and it was also clear how.
 
 \subsection{Element Representation}
-Thus the obvious level of abstraction was to abstract these two different kinds of substrings into two different types.
+The next level of abstraction was to abstract these two different kinds of elements into two different types.
+The class \codeword{Type} was created to represent the type of a template argument. The class \codeword{Surrounding} was created to represent surrounding text that lies between types. As per my design philosophy, these are both lightweight types that store immutable values.
 
-The class \codeword{Type} was created to represent the type of a template argument. The class \codeword{Surrounding} was created to represent surrounding text that lies between types. As per my design philosophy, these are both lightweight types that simply store immuntable data.
+\subsection{Template Representation}
+A template's elements were now a list of \codeword{TemplateElement} objects, where a \codeword{TemplateElement} is either a \codeword{Type} or a \codeword{Surrounding}.
+The next logical step was to have a \codeword{Template} class to be a wrapper class around a \codeword{TemplateElement} list. This \codeword{Template} class provided a read-only view to the element list. It also exposed functions that queried the elements. These functions included obtaining the template's types or surrounding text -- what was previously done manually -- along with more advanced queries that will be discussed later.
 
 \subsection{Literal Representation}
-Once I had solved the \codeword{Template} design problem, I applied the same principles to creating a design for the literals. I found throughout creating the editor that literals did not need as elaborate a design as templates: in fact, they did not even need their own class. In broad terms, a template acts on literals -- mainly through extracting terms, or checking whether a given literal matches its form. So, while templates have rich functionality, literals are passive objects that are acted on. Thus there is no need for a literal class with methods or mutating state.
+Once I had solved the \codeword{Template} design problem, I applied the same principles to creating a design for the literals. While working on the editor, I found that literals did not need as elaborate a design as templates: in fact, they did not even need their own class. In broad terms, a template acts on literals -- mainly through extracting terms, or checking whether a given literal matches its form. So, while templates have rich functionality, literals are passive objects that are acted on. There is no need to encapsulate a literal's elements behind a class, as a literal would not need any methods.
 \\
 \\
-Like a template, a Logical English literal consists of text that is either a typed term, or is surrounding text. Like with templates, the natural representation is simply a list of \codeword{LiteralElement} elements, where a \codeword{LiteralElement} is either a \codeword{Surrounding} or a \codeword{Term}.
+A Logical English literal consists of text that is either a term, or is surrounding text. So, similar to templates, the natural representation is a list of \codeword{LiteralElement} elements, where a \codeword{LiteralElement} is either a \codeword{Surrounding} or a \codeword{Term}.
 
 \subsubsection{Term}
 In logical english, a term is a value with an associated type. The natural data structure to represent this is therefore:
@@ -45,39 +54,73 @@ In logical english, a term is a value with an associated type. The natural data 
 with each of these properties being immutable. It is important that the \codeword{type} property is a reference to the corresponding type, not a copy. This is crucial to see if two uses of the same Logical English term have conflicting types.
 
 \subsection{Section Representation}
-Along with representing Logical English data, it was also important to be able to refer to where the data is in the document. This is crucial in highlighting, providing diagnostic error underlines and identifying the current literal that the user is typing. Attaching position data to these representations themselves was a bad idea for two reasons: by the design principle of concerns \todo[inline]{Name the design principle}, the representations are ``abstract'' in that they represent what a logical english construct is, not where it happens to lie in a document. Further, it is important to know where bodies of raw text (i.e. \codeword{string}s) are: these, of course, do not have position data.
+Along with representing Logical English data, it was also important to be able to refer to where the data lies in the document. This is crucial in highlighting features of the document, providing diagnostic error underlines and identifying the current literal that the user is typing. 
+\\
+\\
+The immediate approach would have been to add a \codeword{range} field to each of the above classes, that specifies where the data begins and ends in the document. However, attaching range data to these representations themselves was a bad idea for two reasons: by the design principle of concerns \todo[inline]{Name the design principle} the representations are ``abstract'' in that they represent what a logical english construct is, not where it happens to lie in a document. Further, it is important to know where bodies of raw text (i.e. \codeword{string} objects) are. These do not have range data.
 
 \subsubsection{ContentRange$<$T$>$}
-This is a generic type, allowing the type to store any kind of data in its field. For a given type \codeword{T} (a \codeword{string}, a \codeword{Template} or any other kind of content), a \codeword{ContentRange<T>} has a \codeword{content: T} field, and a \codeword{range} field. The \codeword{range} field stores the beginning and the end of the content, in the \codeword{(line number, character number)} form that \codeword{vscode-langaugeserver} uses. Note that \codeword{T} could be any type whatsoever, including types that do not make sense.
+The alternative solution was to have a class that wraps data, adding an additional range field. For a given type \codeword{T} (a \codeword{string}, a \codeword{Template} or any other kind of content), a \codeword{ContentRange<T>} has a \codeword{content} field of type \codeword{T}, and an immutable \codeword{range} field. 
+\begin{lstlisting}
+    class ContentRange<T>:
+        content: T
+        range: Range
+\end{lstlisting}
+The \codeword{range} field stores the beginning and the end of the content, in the \codeword{(line number, character number)} form that \codeword{vscode-langaugeserver} uses. 
+\\
+\\
+Note that \codeword{T} could be any type whatsoever, including types that do not make sense (such as the \codeword{void} type, or the type of a function). However, there was not enough commonality between valid values of \codeword{T}, such as \codeword{string}, \codeword{Template} or \codeword{LiteralElement[]}, to constrain \codeword{T} effectively.
 %
 %
 %
 \section{Semantic Highlighting}
+\subsection{An Overview}
+The semantic highlighting highlights the terms of each atomic formula in the document. To identify the terms, the templates are first read from the document and represented as \codeword{Template} objects. For each literal, the \codeword{Template} object that best matches it is found by comparing each template against the literal. Using the closest-matching \codeword{Template} object, the literal's terms are identified and highlighted.
+
 \subsection{How a Language Server highlights}
 \todo[inline]{Research this in more detail}
 
-\subsection{Template Parsing}
-First, the lines containing templates are found. These are found by starting after the header \codeword{the templates are:}, continuing until either another header or the end of the document is reached. A corresponding template is constructed from each non-empty line by the template class: sub-strings wrapped in asterisks are taken to contain types, and the relevant \codeword{Type} object is put in place, taken from the type tree.
+% \subsection{Template Parsing}
+% In parsing the templates, the lines containing templates are found, starting at the header \codeword{the templates are:}, and continuing until either another header or the end of the document is reached. 
+% \\ 
+% \\
+% The \codeword{Template} class then constructs a template from each line. Each substring of the form \codeword{*a _*} or \codeword{*an _*} is taken to be a type name, and the corresponding \codeword{Type} object is put in the corresponding place. All other substrings are wrapped in a \codeword{Surrounding} object.
 
 \subsection{Extracting the terms of a literal}
-The fundamental problem here is, given a template \codeword{T} and a literal \codeword{L} that is assumed to match, how to extract the elements of the literal? In short, this is done by leveraging the assumptions that the template and the literal share the same surroundings. Under this assumption, comparing the template's surroundings against the literal yields the literal's terms. The algorithm for this is given below.
+In short, the way I measure how well a template matches a literal is by assuming that the template does indeed match the literal, extracting the literal's elements according to this assumption, and judging the result. So I must first describe how a template extracts a literal's elements.
+\\ 
+\\
+This is a fundamental problem that is used by many of the language server's features, such as type checking a literal's terms and ranking literal completions, along with semantic highlighting. This lead me to spend a long time trying different approaches to this problem.
+\todo[inline]{Talk about these other algorithms and their limitations.}
+
+The final algorithm leverages the assumption that the template and the literal share the same surroundings. Under this assumption, comparing the template's surroundings against the literal yields the literal's terms. The algorithm for this is given below.
 \todo[inline]{Write up algorithm here}
-This algorithm was constructed using the idea of incremental problem solving in my Algorithsm course.
+This algorithm was constructed using the idea of incremental problem solving in my Algorithms course.
+\todo[inline]{Expand on this.}
 There is a slight subtlety here: what happens if a surrounding also appears as a term. For example, a scenario where a merchant packages and sends items could be described with the template \codeword{*a merchant* ships *an item*}. If we have a merchant who packages and sends ships, then the corresponding literal would be \codeword{the merchant ships ships}.
 \todo[inline]{Describe how this nuance is handled}
 \todo[inline]{Talk about how this algorithm works with the edge case of incomplete literals also}
 
 \subsection{Matching a template to a literal}
-Once all the template representations have been created, the templates can be used to highlight the terms in each literal. Starting with a given literal, the templates are filtered by whether or not they match the literal. 
-For each template, once the literal's elements have been extracted, the elements are checked to see whether they are isomorphic to the template's elements. That is, whether the surroundings match up between them.
+Once all the template objects have been created, the templates can be used to highlight the terms in each literal. Starting with a given literal, the templates are filtered by whether or not they match the literal. 
+\\
+\\
+Determining whether a template matches a literal is now a simple application of the algorithm that extracts the literal's elements. Once the literal's elements have been extracted, it suffices to check whether the literal's surroundings and the template's surroundings match.
 
-\subsection{Finding the best match}
-Old design: takes first template that matches. Problematic, especially with `default templates' e.g. ``*a thing* is *a thing*''
-\\
-New design with ranking \textit{partially written} templates according to how well they match
+\subsection{Finding the template that best matches a literal}
+Initially, it was assumed that only one template can match a literal. This was convenient, as I could simply use the first (assumed only) template that matches the literal to identify the literal's terms. 
 \\
 \\
-Initially, it was assumed that a literal can only match one template. As the editor was being developed, I soon saw how this was often false. This was most clearly visible when ``default'' templates were implemented -- general templates, such as \codeword{*a thing* is *a thing*} that were implicitly present in every Logical English document. With the above example, if a user then supplies a template \codeword{*a beneficiary* is included in *a will*}, then any literal that matches the latter template -- for example, \codeword{jane is a beneficiary of the will} -- will also match the former template. However, using the former template to extract terms will be incorrect, such as highlighting \codeword{a beneficiary of the will} as a single term.
+However, as the editor was being developed, I soon saw how this was often false. This was most clearly visible when ``default'' templates were implemented -- general templates, such as \codeword{*a thing* is *a thing*} that were implicitly present in every Logical English document. Consider the following Logical English document:
+\begin{lstlisting}[langage={LE}]
+the templates are:
+*a thing* is *a thing*.
+*a person* is a beneficiary of *a will*.
+
+the knowledge base Counter-Example includes:
+jane is a beneficiary of her father's will.
+\end{lstlisting}
+The first template to match the literal \codeword{jane is a beneficiary of her father's will} is the first template: \codeword{*a thing* is *a thing*}. However, this is not the template that \textit{should} match. In fact, using this template to extract the literal's terms will lead to 
 \\ 
 \\
 This motivated a `match score' between a literal and a template. The higher the score, the better the template matches the literal, and the more certain we can be that it should be used to extract the terms.
