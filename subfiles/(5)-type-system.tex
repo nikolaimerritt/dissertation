@@ -1,0 +1,40 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+\chapter{The Type System}
+\section{Requirements}
+\todo[inline]{Talk about `that' etc in requirements.}
+The type system for Logical English had to model Logical English's domain of discourse. Logical English has two categories of terms:
+\begin{enumerate}
+    \item atomic terms, such as names of real-world objects
+    \item atomic formulas, which feature as terms in expressions of modality.
+\end{enumerate}
+The type system had one purpose: to locate inconsistent placements of terms. This requirement demanded that the type system must have a hierarchy of types, and that the type of atomic formulas did not affect the types of their arguments.
+
+\section{Existing Type Systems}
+\todo[inline]{Talk about why `propositions as types' doesnt work here.}
+
+\section{The Type Hierarchy}
+\subsection{The need for a hierarchy}
+Based on the requirement of locating inconsistent placements of terms, it was clear that a type hierarchy was needed. Sentences in English often contain terms whose implicit types change in specificity. 
+\todo[inline]{Find a study of this.}
+For instance, consider the sentence ``I love my pet: I adore the way she wags her tail.'' This simple English sentence has the term \codeword{pet} have three different levels of specificity of its type, from `a pet' to `a female pet' to `a female pet with a tail'. As more detail is specified in a sentence, the type of its terms narrows in refinement. 
+\\
+\\
+Supporting scenarios such as this in Logical English was then a key feature of the type system. This meant that a `subtype' relation between two types $A$ and $B$ were needed, that permits terms of type $A$ to be used where terms of type $B$ are expected. This subtype relation obeys the three axioms of a partial order:
+\begin{itemize}
+    \item \textbf{Reflexivity:} every type $A$ must be a subtype of itself, since, of course, terms of type $A$ can be used whenever terms of type $A$ are expected
+    \item \textbf{Anti-symmetricity:} if the type $A$ and $B$ can be used interchangeably, then the two types are equal in terms of checking for incompatible usages of terms
+    \item \textbf{Transitivity:} if terms of type $A$ can be used whenever terms of type $B$ are expected, and terms of type $B$ can be used whenever terms of type $C$ are expected, then it is safe to use terms of type $A$ whenever terms of type $C$ are expected.
+\end{itemize}
+This means that the type hierarchy forms a Transitive Directed Acyclic Graph. 
+\subsection{The structure of the type hierarchy}
+\subsubsection{The type hierarchy is disconnected}
+It must always be an error to use an atomic term whenever an atomic formula is expected, so the type hierarchy for atomic terms and the type hierarchy for atomic formulas must form two separate Transitive Directed Acyclic Graphs. 
+
+\subsubsection{Roots of the type hierarchy}
+Some atomic formulas apply to any atomic terms, no matter their type: for instance, formulas such as \codeword{x is x.} This requires a `top type` for atomic terms, of which every other type is a subtype. Using the closest matching word from everyday English, the name of this top type shall be `thing'. Similarly, there may be modal atomic formulas that apply to any other atomic formula: for instance, \codeword{the event happened on 01-01-1970.}
+\todo[inline]{Think of a better example of a modal atomic formula that could apply to any other atomic formula. Think of a better name: event is probably not the right technical word.} 
+
+\subsubsection{Bottom nodes of the type hierarchy}
+The constant `unknown' in Logical English can be used in the place of any term.
+\end{document}
