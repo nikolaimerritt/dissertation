@@ -3,13 +3,30 @@
 \begin{document}
 \chapter{Introduction}
 \section{Abstract}
-Language Extensions for code editors are a crucial tool in writing code quickly and without errors. In this project, I create a language extension for the logical, declarative programming language Logical English. The language extension highlights the syntactic and semantic features of Logical English, identifies errors, generates ``boilerplate'' code to fix them. The language editor also extends the language of Logical English through type checking the use of terms, via a type hierarchy. The language extension uses the Language Server Protocol and is therefore cross-editor. It is evaluated when connected to a Visual Studio Code front-end.
+Language Extensions for code editors are a crucial tool in writing code quickly and without errors. In this project, I create a language extension for the logical, declarative programming language Logical English. The language extension highlights the syntactic and semantic features of Logical English, predicts the completion of atomic formulas, identifies errors and generates ``boilerplate'' code to fix them. The language editor also extends the language of Logical English through type checking the use of terms, using a type hierarchy. The extension uses a language server that uses the Language Server Protocol. It is evaluated when connected to a Visual Studio Code front-end.
 
 \section{Motivation: why a new editor?}
-Logical English is a relatively new programming language, first introduced in late 2020 \cite{logical_english} \todo{is this where LE was first introduced?}. Although Logical English has an online editor hosted on the SWISH platform \cite{swish_editor}, the editor is not user-friendly. SWISH is primarily a Prolog editor, and so any Logical English code has to be written in a long string that is an argument to a Prolog function. 
+Logical English is a relatively new programming language, first introduced under that name in late 2020 \cite{logical_english}. Although Logical English has an online editor hosted on the SWISH platform \cite{swish_editor}, the editor is not user-friendly. The SWISH editor is primarily a Prolog editor, so any Logical English code has to be written in a string that is an argument to a Prolog function. 
 \\ 
 \\ 
 This has significant drawbacks. Since Logical English code is written in a Prolog string, the Logical English content cannot be treated by the editor as a standalone program. This means that it can receive no syntax highlighting, error detection, or code completion features beyond that of a Prolog string. Since these features are essential for productivity, a new editor was needed that was custom-built for writing Logical English.
-\todo[inline]{find a source here about IDEs vs Notepad}
+\todo[inline]{Find a source about the productivity of IDEs vs a plaintext editor}
 
+\section{Editor Overview}
+To solve this problem, I built an editor for Logical English. This editor is a language extension for the popular coding environment Visual Studio Code. The language extension consists of three components: a language client, a syntax highlighter, and a language server. 
+
+\subsection{Language Client}
+The language client is built for Visual Studio Code. The language client delivers the editor's features to the user's Visual Studio Code window.
+
+\subsection{Syntax Highlighter}
+The syntax highlighter is a document that contains the grammar of Logical English. The language client reads the syntax highlighter when the editor is opened. This allows the language client to highlight aspects of Logical English in the user's document.
+
+\subsection{Language Server}
+The language server calculates the main features of the editor. When the user writes in the document, the language client communicates the change to the language server. The language client may request features such as:
+\begin{itemize}
+    \item whether there are any errors in the document to diagnose
+    \item whether what the user is currently writing can be auto-completed
+    \item if the user is hovering over an error message, whether a `quick fix' can be suggested
+\end{itemize}
+The language server calculates these features and communicates them to the language client. The language client ensures that these features are then displayed to the user.
 \end{document}

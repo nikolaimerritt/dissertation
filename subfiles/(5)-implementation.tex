@@ -1,63 +1,54 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
 \chapter{Implementation}
-\section{System Overview}
-\begin{figure}[h!]
-\centering
-\includegraphics[width = \linewidth]{./figures/le-editor.png}
-\caption{A diagram showing the overall structure of the Logical English editor.}
-\label{fig:logo}
-\end{figure}
-The overall structure of the editor is as follows. The user interacts with the editor through the language client. The language client takes on the rules of the syntax highlighter to highlight basic syntactic features of the user's document. The language client highlights semantic features of the document, along with presenting any code completions or quick fixes, by routinely polling the language server for this data. The language server presents diagnostics by requesting diagnostic data from the server whenever the user makes a change to the document.
-
 \section{Data Representation}
 \subsection{Description of Problem}
-When providing diagnostics, semantic highlighting, code completion or quick fixes, the initial task of the language server is always to extract the document's literals and templates. It was clear early on that this is the fundamental problem: the better the representation the editor has for the literals and templates, the easier all subsequent work on them will be. It was important to design representations that:
+When providing diagnostics, semantic highlighting, code completion or quick fixes, the initial task of the language server is always to extract the document's templates and atomic formulas. It was clear early on that this is the fundamental problem: the better the representation the editor has for the templates and atomic formulas, the easier all subsequent work on them will be. It was important to design representations that:
 \begin{itemize}
-    \item were lightweight: literals and templates would be reloaded every time the document received an update
-    \item focused on semantics: it should be easy to perform queries and operations based on a literal's or template's meaning
-    \item did not stray too far from the Logical English syntax: converting to and from Logical English should be simple
-    \item were not too distinct from each other: templates and literals are often used together, such as querying whether a literal matches a template
+    \item were lightweight: templates and atomic formulas would be reloaded every time the document received an update
+    \item focused on grammar: it should be easy to perform queries based on an atomic formula or template's grammatical structure
+    \item did not stray too far from the Logical English syntax: converting to and from Logical English should be kept simple
+    \item were not too distinct from each other: templates and atomic formulas often feature together in queries
 \end{itemize}
-Based on the last requirement, I could focus on first designing a representation for templates, and then use those ideas to design a similar representation for literals. 
+Based on the last requirement, I could focus on first designing a representation for templates, then use those ideas to design a similar representation for atomic formulas. 
 
 \subsubsection{Initial Template Design}
-Initially, the most obvious and simple design for a template was as a list of tokens, called `elements' \footnote{This is done to distinguish these tokens from the tokens used in highlighting the document}, each element being a string. These elements would either be a type, such as \codeword{*a person*}, or text that lies between the types, such as \codeword{goes shopping}. This list of elements was easily acheived by splitting a Logical English template by a regular expression that identified substrings of the form \codeword{*a _*} or \codeword{*an _*}. 
+Initially, the most obvious and simple design for a template was as a list of tokens, called `elements' \footnote{The name `elements' is used to distinguish from the tokens used in highlighting the document}, each element being a string. These elements would either refer to a template's argument name, such as \codeword{*a person*}, or text that lies between the arguments, such as \codeword{goes shopping}. It was quite efficient to generate this list of elements. The list was achieved through splitting a Logical English template by a regular expression that identified substrings of the form \codeword{*a _*} or \codeword{*an _*}. 
 \\
 \\
-Although the design was lightweight and easy to implement, the more I used this design the clearer it became that it did not do enough work for me. Lots of duplicate work had to be re-done whenever this representation was used: specifically, identifying which elements are types, and filtering the list of elements to obtain each type, or each part of surrounding text. 
+Although the design was lightweight and easy to implement, the more I used this design the clearer it became that the did not capture enough of Logical English's grammar. Lots of duplicate work had to be re-done whenever this representation was used: specifically, identifying which elements are template arguments, and filtering the list of elements to obtain the list of arguments, or the list of each part of surrounding text. 
 \\ 
 \\
-It became clear that, effectively, the list consisted of two different types of items: types, on the one hand, and surrounding text on the other. Based on this, the awkwardness of use, and the fact that I had plans to give types a richer structure, it was clear that the design needed upgrading, and it was also clear how.
+It became clear that, effectively, the list consisted of two different types of items: template arguments, on the one hand, and surrounding text on the other. Based on the awkwardness of use and the fact that I had plans to give template arguments a richer type structure, it was clear that the design needed upgrading.
 
 \subsection{Element Representation}
-The next level of abstraction was to abstract these two different kinds of elements into two different types.
-The class \codeword{Type} was created to represent the type of a template argument. The class \codeword{Surrounding} was created to represent surrounding text that lies between types. As per my design philosophy, these are both lightweight types that store immutable values.
+The next level of abstraction was to abstract the two different kinds of elements into two different types.
+The class \codeword{Type} was created to represent a template argument \footnote{Before I implemented the type-checking system, this class was called `TemplateArgument'. However, it will be easier to now only describe the final iteration of the editor.}. This \codeword{Type} class was initially a wrapper around the template argument's name, but was given additional structure when the type hierarchy was implemented. The class \codeword{Surrounding} was created to represent surrounding text that lies between types. As per my design philosophy, these are both lightweight types that store immutable values. \footnote{A note on implementation: along with their string content, both classes were also given a \codeword{kind} enum field. This was used to distinguish which of the two types \codeword{TemplateElement} objects were. This is a common design pattern in TypeScript \cite{union_types}.}
 
 \subsection{Template Representation}
 A template's elements were now a list of \codeword{TemplateElement} objects, where a \codeword{TemplateElement} is either a \codeword{Type} or a \codeword{Surrounding}.
 The next logical step was to have a \codeword{Template} class to be a wrapper class around a \codeword{TemplateElement} list. This \codeword{Template} class provided a read-only view to the element list. It also exposed functions that queried the elements. These functions included obtaining the template's types or surrounding text -- what was previously done manually -- along with more advanced queries that will be discussed later.
 
-\subsection{Literal Representation}
-Once I had solved the \codeword{Template} design problem, I applied the same principles to creating a design for the literals. While working on the editor, I found that literals did not need as elaborate a design as templates: in fact, they did not even need their own class. In broad terms, a template acts on literals -- mainly through extracting terms, or checking whether a given literal matches its form. So, while templates have rich functionality, literals are passive objects that are acted on. There is no need to encapsulate a literal's elements behind a class, as a literal would not need any methods.
+\subsection{Atomic Formula Representation}
+Once I had solved the \codeword{Template} design problem, I applied the same principles to creating a design for the atomic formulas. While working on the editor, I found that atomic formulas did not need as elaborate a design as templates: in fact, they did not even need their own class. In broad terms, a template acts on atomic formulas --through, for example, extracting terms, or checking whether a given atomic formula matches the template's form. While templates have rich functionality, atomic formulas are passive objects that are acted on. This meant that there was no need to encapsulate an atomic formula's elements behind a class, as such a class would not need any methods.
 \\
 \\
-A Logical English literal consists of text that is either a term, or is surrounding text. So, similar to templates, the natural representation is a list of \codeword{LiteralElement} elements, where a \codeword{LiteralElement} is either a \codeword{Surrounding} or a \codeword{Term}.
+An atomic formula consists of text that is either a term, or is surrounding text. So, similar to templates, the natural representation is a list of \codeword{FormulaElement} elements, where a \codeword{FormulaElement} is either a \codeword{Surrounding} or a \codeword{Term}. This prompted a new \codeword{Term} class.
 
 \subsubsection{Term}
-In logical english, a term is a value with an associated type. The natural data structure to represent this is therefore:
+In Logical English, a term is a value with an associated type. The natural data structure to represent this is therefore:
 \begin{lstlisting}
     class Term:
         name: string
         type: Type
 \end{lstlisting}
-with each of these properties being immutable. It is important that the \codeword{type} property is a reference to the corresponding type, not a copy. This is crucial to see if two uses of the same Logical English term have conflicting types.
+with each of these properties being immutable. It was important to ensure that the \codeword{type} property is a reference to the corresponding type, not a copy. This was required in checking whether two uses of the same Logical English term have conflicting types.
 
 \subsection{Section Representation}
-Along with representing Logical English data, it was also important to be able to refer to where the data lies in the document. This is crucial in highlighting features of the document, providing diagnostic error underlines and identifying the current literal that the user is typing. 
+Along with representing Logical English data, it was also important to be able to refer to where the data lies in the document. This is crucial in highlighting features of the document, providing diagnostic error underlines, and identifying the current atomic formula that the user is typing. 
 \\
 \\
-The immediate approach would have been to add a \codeword{range} field to each of the above classes, that specifies where the data begins and ends in the document. However, attaching range data to these representations themselves was a bad idea for two reasons: by the design principle of concerns \todo[inline]{Name the design principle} the representations are ``abstract'' in that they represent what a logical english construct is, not where it happens to lie in a document. Further, it is important to know where bodies of raw text (i.e. \codeword{string} objects) are. These do not have range data.
+The immediate approach would have been to add a \codeword{range} field to each of the above classes that specifies where the data begins and ends in the document. However, attaching range data to the representations themselves was a bad idea for two reasons: by the principle of Separation of Concerns \todo[inline]{Name the design principle} the representations are ``abstract'': they represent what a Logical English construct is, not where it happens to lie in a document. Further, it is important to know where bodies of raw text (i.e. \codeword{string} objects) are. These do not have range data.
 
 \subsubsection{ContentRange$<$T$>$}
 The alternative solution was to have a class that wraps data, adding an additional range field. For a given type \codeword{T} (a \codeword{string}, a \codeword{Template} or any other kind of content), a \codeword{ContentRange<T>} has a \codeword{content} field of type \codeword{T}, and an immutable \codeword{range} field. 
@@ -75,7 +66,7 @@ Note that \codeword{T} could be any type whatsoever, including types that do not
 %
 \section{Semantic Highlighting}
 \subsection{An Overview}
-The semantic highlighting highlights the terms of each atomic formula in the document. To identify the terms, the templates are first read from the document and represented as \codeword{Template} objects. For each literal, the \codeword{Template} object that best matches it is found by comparing each template against the literal. Using the closest-matching \codeword{Template} object, the literal's terms are identified and highlighted.
+The semantic highlighting feature highlights the terms of each atomic formula in the document. To identify the terms, the templates are first read from the document and represented as \codeword{Template} objects. To each literal, the closest-matching \codeword{Template} object is assigned. Using these \codeword{Template} objects, literals' terms are identified and highlighted.
 
 \subsection{How a Language Server highlights}
 \todo[inline]{Research this in more detail}
@@ -87,7 +78,7 @@ The semantic highlighting highlights the terms of each atomic formula in the doc
 % The \codeword{Template} class then constructs a template from each line. Each substring of the form \codeword{*a _*} or \codeword{*an _*} is taken to be a type name, and the corresponding \codeword{Type} object is put in the corresponding place. All other substrings are wrapped in a \codeword{Surrounding} object.
 
 \subsection{Extracting the terms of a literal}
-In short, the way I measure how well a template matches a literal is by assuming that the template does indeed match the literal, extracting the literal's elements according to this assumption, and judging the result. So I must first describe how a template extracts a literal's elements.
+In short, the way I measure how well a template matches a literal is by assuming that the template fully matches the literal, extracting the literal's elements according to this assumption, and judging the result. So I must first describe how a template extracts a literal's elements.
 \\ 
 \\
 This is a fundamental problem that is used by many of the language server's features, such as type checking a literal's terms and ranking literal completions, along with semantic highlighting. This lead me to spend a long time trying different approaches to this problem.
@@ -112,7 +103,7 @@ Initially, it was assumed that only one template can match a literal. This was c
 \\
 \\
 However, as the editor was being developed, I soon saw how this was often false. This was most clearly visible when ``default'' templates were implemented -- general templates, such as \codeword{*a thing* is *a thing*} that were implicitly present in every Logical English document. Consider the following Logical English document:
-\begin{lstlisting}[langage={LE}]
+\begin{lstlisting}[language={LE}]
 the templates are:
 *a thing* is *a thing*.
 *a person* is a beneficiary of *a will*.
@@ -120,12 +111,13 @@ the templates are:
 the knowledge base Counter-Example includes:
 jane is a beneficiary of her father's will.
 \end{lstlisting}
-The first template to match the literal \codeword{jane is a beneficiary of her father's will} is the first template: \codeword{*a thing* is *a thing*}. However, this is not the template that \textit{should} match. In fact, using this template to extract the literal's terms will lead to 
+The first template to match the literal \codeword{jane is a beneficiary of her father's will} is the first template: \codeword{*a thing* is *a thing*}. However, this is not the template that \textit{should} match. In fact, using this template to extract the literal's terms will lead to \codeword{a beneficiary of her father's will} being highlighted as a single term.
 \\ 
 \\
-This motivated a `match score' between a literal and a template. The higher the score, the better the template matches the literal, and the more certain we can be that it should be used to extract the terms.
+This motivated a `match score' between a literal and a template. The higher the score, the better the template matches the literal.
 \todo[inline]{Write up scoring algorithm}
-\todo[inline]{Con: this is not normalised -- how are comparisons then meaningful?}
+\todo[inline]{Con: this score is not normalised -- how are comparisons then meaningful?}
+Under this match score, the highest scoring template that matches the literal is used to extract its terms.
 %
 %
 %
@@ -134,12 +126,15 @@ This motivated a `match score' between a literal and a template. The higher the 
 \todo[inline]{Research this in more detail}
 
 \subsection{Completing the remainder of a literal}
-To offer completion for a literal, first its corresponding templates are found. This is not as straightforward as searching for which templates match the literal, because the literal will be incomplete, and so will not match any template. Instead, the templates are ranked by their match score against the literal, and the top three are taken.
+To offer completion for a literal, its corresponding templates are found. This is not as straightforward as searching for which templates match the literal, because the literal will be incomplete, and so will not match any template. Instead, the templates are ranked by their match score against the literal, and the top three are taken.
 \\
 \\
-There is already some nuance here. Some matches will be ``obviously'' irrelevant, such as (the dreaded) \codeword{*a thing* is *a thing*} against \codeword{the person is a beneficiary of }. These cannot be ruled out algorithmically, however, since they do match. They will, however, be out-ranked by templates with better-matching surroundings, and will appear lower in the list.
-Finding best three templates according to match score. Filling in templates with terms that the literal has so far.
+There is already some nuance here. Some matching templates will be irrelevant, such as (the dreaded) \codeword{*a thing* is *a thing*} against the incomplete literal \codeword{a person is a beneficiary of }. These templates cannot be ruled out algorithmically, since they do match. They will, however, be out-ranked by templates with better-matching surroundings. If the top three templates are taken every time, then the results from these erroneous matches will either appear lower in the list, or not appear at all.
 \todo[inline]{Justify why at most three literals are suggested. Research user design.}
+\\ 
+\\
+Once the best three templates have been identified, each template is used to auto-complete the rest of the literal. The terms that the incomplete literal already contains are substituted into each template. Any remaining variables are presented to the user as placeholders. When the user selects a template, however, these placeholders can be instantly navigated to by pressing Tab, allowing the user to quickly fill in the placeholders. This is done through Visual Studio Code's `code snippet' feature, whereby text wrapped in \codeword{${  }} is treated as a placeholder that can be navigated to.
+\todo[inline]{What other language clients support this? Does this affect the universality of the language server?}
 %
 %
 %
@@ -148,36 +143,53 @@ Finding best three templates according to match score. Filling in templates with
 \todo[inline]{Research this in more detail}
 
 \subsection{Diagnosing literals that have no matching template}
-Given the above discussion it is fairly straightforward to find literals that do not match any template. The nuance is in using this as the deciding factor actually being too eager. Specifically, incomplete literals (e.g. literals that are being typed) will, in general, not match a template. This means that every literal that is being typed will be diagnosed as incorrect until it is finished.
-\todo[inline]{Talk about how this is impossible to fix: on diagnosis time, all that is given is the text document, not the cursor position.}
+The first kind of error diagnosis identifies literals that do not have a matching template. Having already solved the problem of determining whether a template matches a literal, this at first glance appeared simple.
+However, as I was testing this feature I found that this criterion was too broad. Specifically, incomplete literals (e.g. literals that are being typed) will, in general, not match a template. This means that every literal that is being typed will be diagnosed as incorrect until it is finished.
+\todo[inline]{Talk about how this is impossible to fix. At diagnosis time, all that is given is the text document, not the cursor position.}
 
 \subsection{Diagnosing clauses that have misaligned connectives}
-This is another problem that sounds simple in theory, once the above framework was developed, but turned out to have nuances in practice. Each clause is split into its lines, and the lines containing the keywords \codeword{and} and \codeword{or}, which have equal precedence, have their indentation compared. If two literals with different connectives have the same whitespace, then the precedence of the connectives is ambiguous.
+The second kind of error diagnosis identifies clauses that have misaligned connectives. Logical English requires that each literal has its own line. Each clause is split into its lines, and the lines containing the keywords \codeword{and} and \codeword{or}, which have equal precedence, have their indentation compared. If two literals with different connectives have the same whitespace, then the precedence of the connectives is ambiguous. The clause is then marked with the error message ``clause has misaligned connectives".
 \\
 \\
-The nuance is with the term `same indentation'. There are two equally common ways to indent lines: tabs and spaces. There is no standard way to display a tab in terms of spaces: any range from two to eight spaces is common. Thus, if one person indents literals using tabs, and the other using spaces, then it is up to interpretation as to whether the indent is correct or not.
-\todo[inline]{Cite sources on this. Talk about how this is a problem in Python, and that there is no solution. Talk about how it should therefore be an error to mix spaces and tabs, but I do not want to check for this.}
-Issue: spaces versus tabs
+The nuance is with the term `same whitespace'. There are two equally common ways to indent lines: tabs and spaces. There is no standard way to display a tab in terms of spaces: any range from two to eight spaces is common. Thus, if one person indents literals using tabs, and the other using spaces, then it is up to interpretation as to whether the indentation is correct or not.
+\todo[inline]{Cite sources on this. Talk about how this is a problem in Python, and that there is no real solution. Talk about how it should therefore be an error to mix spaces and tabs, but that checking for this is left as future work.}
 
 \subsection{Diagnosing type mismatches}
-
 \subsubsection{Feature Overview}
-Although not part of the editor's requirements, the Logical English development team wanted a way to introduce experimental support for typed terms. The argument labels in templates would give the type of their argument. This feature would be used for finding type errors in multiple uses of the same term across a clause. Since this feature is experimental, it was not supposed to clash with any existing features or hinder the experience of a user who did not want this.
+Although not part of the editor's requirements, the Logical English development team wanted a way to introduce experimental support for typed terms. The argument names in templates would name the type of their argument. This feature would be used for finding type mismatch errors in multiple uses of the same term across a clause. Since this feature is experimental, it was important not to clash with any existing features, or hinder the experience of a user who did not want their types to be checked.
 \\
 \\
-The way I chose to implement this feature was to have type checking turned off by default, only being turned on with an explicit \codeword{type checking: on} comment. The type hierarchy was also designed to be as minimal as possible. 
-\todo[inline]{Move this discussion to Requirements section.}
+The way I chose to implement this feature was to have type checking turned off by default, only being turned on with an explicit \codeword{type checking: on} comment. The type hierarchy was also designed to be as minimal as possible, requiring little wording and being easy to read. 
 
 \subsubsection{Initial design: flat type hierarchy}
-When experimenting with implementing this feature, I first implemented type checking before implemnting a type hierarchy. In each clause, the literals were extracted, and, using the document's templates, the terms were extracted from each literal. These terms were typed, but there was no notion of sub-type or super-type. If two terms were found that had the same name but different types, a type mismatch error message was generated.
+When experimenting with implementing this feature, I first implemented type checking before introducing a type hierarchy. In each clause, the literals were extracted, and, using the document's templates, the terms were extracted from each literal. These terms were typed, but there was no notion of sub-type or super-type. If two terms were found that had the same value but different types, a type mismatch error message was generated.
 \\ 
 \\
-This design was a lot more inconvenient to use than I expected, with many more surprising error messages being generated. This was mainly because of the default templates, and for two reasons. Firsly, since the default templates are very broad, they use placeholder type names, such as \codeword{A}, \codeword{B}, \codeword{C}, \codeword{thing}, et cetera. Ths caused problems for two reasons. Firstly, the type names clashed with the more specific type names found in real-world Logical English examples, if they were used together. Secondly, the type names often clashed amoungst themselves: take, for example, the template \codeword{*an A* appended to *a B* gives *a C*}, and the literal \codeword{[] appended to the list gives the list}. Here \codeword{the list} is both of type \codeword{B} and \codeword{C}.
+This design was a lot more inconvenient to use than I expected, with many more error messages being generated than I anticipated. This was mainly because of the default templates. Since the default templates are very broad, they use placeholder type names, such as \codeword{A}, \codeword{B}, \codeword{C}, \codeword{thing}, et cetera. 
+\\
+\\
+This caused problems for two reasons. Firstly, the type names clashed with the more specific type names used in other Logical English templates, if a clause used the two templates together. This problem could only be resolved through a type hierarchy, making sure that the types used in the default templates would be super-types of whatever is used in more specific templates.
+\\
+\\
+However, there was a second issue, in which the type names often clashed amongst themselves. Take, for example, a Logical English program in which the empty list is reversed.
+\begin{lstlisting}[language={LE}]
+    the templates are:
+    % a default template
+    *an A* is the reverse of *a B*. 
+    
+    the knowledge base Type-Clashing includes:
+    [] is the reverse of [].
+\end{lstlisting}
+(In reality, the template above would not need to be stated, since it is included by default.) Here \codeword{[]]} is both of type \codeword{A} and \codeword{B}.
 \todo[inline]{Cite the default templates, or at least, talk about them in the LE specification.}
-The solution to the first problem could only be resolved through a type hierarchy, making sure that the types used in the default templates would be super-types of whatever is used in more specific templates. However, the solution to the second problem was immediately resolvable: rename the types. All general type names such as \codeword{A}, \codeword{B}, \codeword{C} et cetera were renamed to \codeword{thing}.
+The solution to this problem was to rename the types in each of the default templates. With the above template, for instance, being renamed to 
+\begin{lstlisting}[language={LE}]
+    *a list* is the reverse of *a list*.
+\end{lstlisting}
+there was no type clashing since the types better matched the arguments. Renaming the types would not cause any errors with any older Logical English code, since the argument names of templates were not used by the Logical English engine.
 
 \subsubsection{Diagnosing with a type hierarchy}
-First, the type tree is read from the document under the header \codeword{the type hierarchy is:}. Parsing a text version of a tree is a well-known algorithmic problem.
+First, the type tree is read from the document under the header \codeword{the type hierarchy is:}. The type hierarchy is written very minimalisticly. The tree is written a below the Parsing a text version of a tree is a well-known algorithmic problem.
 \todo[inline]{Cite the solution.}
 Now instead of simply checking whether two type names are equal, the two types are checked to see if one is a subtype of the other. Since types are rerpesented in a tree, this is a simple tree search problem to see whether either type node has a child node with the same name as the other type.
 \todo[inline]{Cite the solution.}
