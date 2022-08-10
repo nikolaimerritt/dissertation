@@ -81,15 +81,27 @@ which person travels to which place.
 \subsubsection{Templates}
 The program starts with the template section, with header \codeword{the templates are:}, in which the templates are defined. 
 
-\subsubsection{Knowledge base}
+\subsubsection{Modal Atomic Formulas}
+A `modal' atomic formula can contain another atomic formula. When this happens, the modal atomic formula must have the keyword \codeword{that} preface the lesser atomic formula. This feature can be used to state an atomic formula that is about an event, an obligation or an action -- all of which could themselves be atomic formulas.
+
+\begin{lstlisting}[language=LE,label={le:modal},caption={An example of an atomic formula featuring in a modal atomic formula.}]
+the templates are:
+*a bank* receives money.
+*a person* pays money to *a bank*.
+there is a requirement that *an action*.
+
+the knowledge base Payments includes:
+LE bank receives money if
+    there is a requirement that bob pays money to LE bank.
+\end{lstlisting}
+In Listing \ref{le:modal}, the atomic formula \codeword{bob pays money to LE bank} features in a modal atomic formula.
+
+\subsubsection{Clauses}
 \label{section:knowledge-base}
 The program's clauses are given in the knowledge base. The knowledge base can either start with the header \codeword{the knowledge base includes:}, or it can be given a name, in which case it starts with the header \codeword{the knowledge base <name> includes:}. 
 \\
 \\
-Clauses are written in order of dependency: if clause $A$ is referenced by clause $B$, then clause $A$ must be written before clause $B$.
-\\ 
-\\
-Clauses begin with exactly one `head', which is the atomic formula that is logically implied by the rest of the clause. If a clause is simply a head, then the head is taken to be true in all cases. Otherwise, the head is followed by the keyword \codeword{if}, then a number of `body' atomic formulas. These body atomic formulas together determine when the head atomic formula is true, through the use of the connectives \codeword{and}, \codeword{or}, or \codeword{it is not the case that}.
+Clauses begin with exactly one `head', which is the atomic formula that can be derived from the rest of the clause. If a clause is simply a head, then the head is taken to be true in all cases. Otherwise, the head is followed by the keyword \codeword{if}, then a number of `body' atomic formulas. These body atomic formulas are separated by the connectives \codeword{and}, \codeword{or}, or \codeword{it is not the case that}.
 \\ 
 \\
 The precedence of these connectives is clarified by indentation. Connectives that have higher precedence are indented further. For example, \texttt{(A and B) or C} is written
@@ -105,12 +117,14 @@ and \texttt{A and (B or C)} is written
     and B
         or C.
 \end{lstlisting}
-The connective \codeword{it is not the case that} always takes highest precedence. However, there is no default preference over \codeword{and} and \codeword{or}: it is an ambiguity error to write
+There is no default preference over \codeword{and} and \codeword{or}: it is an ambiguity error to write
 \begin{lstlisting}[language={LE}]
     A 
     and B
     or C.
 \end{lstlisting}
+\\
+\\
 Like in \ref{le:short}, a variable is introduced for the first time by beginning its name with \codeword{a} or \codeword{an}.  Subsequent uses of the variable must then start with \codeword{the}. Variables quantify over all the terms that are used in the knowledge base.
 
 \subsubsection{Scenarios}
