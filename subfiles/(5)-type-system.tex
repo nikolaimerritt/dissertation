@@ -20,16 +20,16 @@ Based on the requirement of locating inconsistent placements of terms, it was cl
 For instance, consider the sentence ``I love my pet: I adore the way she wags her tail.'' This simple English sentence has the term \codeword{pet} have three different levels of specificity of its type, from `a pet' to `a female pet' to `a female pet with a tail'. As more detail is specified in a sentence, the type of its terms narrows in refinement. 
 \\
 \\
-Supporting scenarios such as this in Logical English was then a key feature of the type system. This meant that a `subtype' relation between two types $A$ and $B$ were needed, that permits terms of type $A$ to be used where terms of type $B$ are expected. This subtype relation obeys the three axioms of a partial order:
+Supporting scenarios such as this in Logical English was then a key feature of the type system. This meant that a `subtype' relation $\subtype$ between types was needed, where $A \subtype B$ when terms of type $A$ can be used where terms of type $B$ are expected. This relation obeys the three axioms of a partial order:
 \begin{itemize}
     \item \textbf{Reflexivity:} every type $A$ must be a subtype of itself, since, of course, terms of type $A$ can be used whenever terms of type $A$ are expected
-    \item \textbf{Anti-symmetricity:} if the type $A$ and $B$ can be used interchangeably, then the two types are equal in terms of checking for incompatible usages of terms
+    \item \textbf{Anti-symmetricity:} if $A \subtype B$ and $B \subtype A$ then the type $A$ and $B$ can be used interchangeably. This means that $A$ and $B$ are equal in terms of checking for incompatible usages of terms
     \item \textbf{Transitivity:} if terms of type $A$ can be used whenever terms of type $B$ are expected, and terms of type $B$ can be used whenever terms of type $C$ are expected, then it is safe to use terms of type $A$ whenever terms of type $C$ are expected.
 \end{itemize}
-This means that the type hierarchy forms a Transitive Directed Acyclic Graph. 
+Since $\subtype$ is a partial order, the type hierarchy induced by $\subtype$ forms a Transitive Directed Acyclic Graph. 
 \subsection{The structure of the type hierarchy}
 \subsubsection{The type hierarchy is disconnected}
-It must always be an error to use an atomic term whenever an atomic formula is expected, so the type hierarchy for atomic terms and the type hierarchy for atomic formulas must form two separate Transitive Directed Acyclic Graphs. 
+It must always be an error to use an atomic term whenever an atomic formula is expected. This means that the type hierarchy for atomic terms and the type hierarchy for atomic formulas must form two separate Transitive Directed Acyclic Graphs. 
 
 \subsubsection{Roots of the type hierarchy}
 Some atomic formulas apply to any atomic terms, no matter their type: for instance, formulas such as \codeword{x is x.} This requires a `top type` for atomic terms, of which every other type is a subtype. Using the closest matching word from everyday English, the name of this top type shall be `thing'. Similarly, there may be modal atomic formulas that apply to any other atomic formula: for instance, \codeword{the event happened on 01-01-1970.}

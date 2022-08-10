@@ -85,11 +85,12 @@
 \renewcommand*{\rmdefault}{bch}
 \renewcommand*{\ttdefault}{cmtt}
 
-%codeword
-\NewDocumentCommand{\codeword}{v}{%
-\texttt{\textcolor{darkgray}{#1}}%
-}
+% %codeword
+% \NewDocumentCommand{\codeword}{v}{%
+% \texttt{\textcolor{darkgray}{#1}}%
+% }
 
+\newcommand{\codeword}{\lstinline[language=LE]}
 
 
 %%% Default settings (page layout)
@@ -212,3 +213,4 @@ title=\lstname % show the filename of files included with \lstinputlisting; also
   showtabs=false,
   captionpos=b
 }
+\newcommand{\subtype}{\leq}
