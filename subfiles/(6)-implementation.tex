@@ -171,58 +171,66 @@ Each of the three best-matching templates are then used to suggest the rest of t
 \todo[inline]{Research this in more detail}
 
 \subsection{Diagnosing literals that have no matching template}
-The first kind of error diagnosis identifies literals that do not have a matching template. Having already solved the problem of determining whether a template matches a literal, this at first glance appeared simple.
+The editor diagnoses errors where a literal does not have a matching template. Having already solved the problem of determining whether a template matches a literal, this at first glance appeared simple.
 However, as I was testing this feature I found that this criterion was too broad. Specifically, incomplete literals (e.g. literals that are being typed) will, in general, not match a template. This means that every literal that is being typed will be diagnosed as incorrect until it is finished. 
 \\
 \\
-Unfortunately, this is impossible to fix in the \codeword{vscode-languageserver} library. When the client requests diagnosis information, all that is supplied is the current state of the document. To determine which literal is being typed by the user, the user's cursor position would also be needed. Since the client supplies the cursor position when requesting auto-completions, one possible workaround could be to store the cursor position when auto-copletions are requested, and hope that this position stays accurate when it is time to provide diagnostic information. However, I expect that this approach is highly ineffective in practice.
+Unfortunately, this is impossible to fix in the current version of the Language Server Protocol. When the client requests diagnosis information, all that is supplied is the current state of the document. To determine which literal is being typed by the user, the user's cursor position would also be needed. Since the client supplies the cursor position when requesting auto-completions, one possible workaround could be to store the cursor position when auto-completions are requested and hope that this position stays accurate when it is time to provide diagnostic information. However, I expect that this approach is highly ineffective in practice.
 
 \subsection{Diagnosing clauses that have misaligned connectives}
-The second kind of error diagnosis identifies clauses that have misaligned connectives. Logical English requires that each literal has its own line. Each clause is split into its lines, and the lines containing the keywords \codeword{and} and \codeword{or}, which have equal precedence, have their indentation compared. If two literals with different connectives have the same whitespace, then the precedence of the connectives is ambiguous. The clause is then marked with the error message ``clause has misaligned connectives".
+The editor also dianoses errors where a clause has misaligned connectives. Logical English requires that each literal begins on its own line. The lines starting with the keywords \codeword{and} and \codeword{or}, which have equal precedence, have their indentation compared. If two literals have the same whitespace, but one begins with \codeword{or} while the other begins with \codeword{and}, then the precedence of the connectives is ambiguous. By keeping track of where the clause occurs in the document, the clause is then marked with the error message ``clause has misaligned connectives".
 \\
 \\
-The nuance is with the term `same whitespace'. There are two equally common ways to indent lines: tabs and spaces. There is no standard way to display a tab in terms of spaces: any range from two to eight spaces is common. Thus, if one person indents literals using tabs, and the other using spaces, then it is up to interpretation as to whether the indentation is correct or not.
-\todo[inline]{Cite sources on this. Talk about how this is a problem in Python, and that there is no real solution. Talk about how it should therefore be an error to mix spaces and tabs, but that checking for this is left as future work.}
+The nuance here is with the term `same whitespace'. There are two common ways to indent lines: tabs and spaces, roughly equally common amoungst programmers \cite{tabs_vs_spaces}. There is no standard, single size of a tab in terms of spaces. For instance, IBM documents the popular `Courier' font to allow a tab size ranging from 0.7 points to 20 points. Thus, if one person indents literals using tabs, and the other using spaces, then it is up to interpretation as to whether the indentation is correct or not.
+\\
+\\
+The popular programming language Python 3, which has a similar dependence on consistent indentation, attempts to infer a reasonable amount of spaces that a tab must represent based on the document. If it cannot do so, it raises an error \cite{python_tabs_spaces}. Since this is a tangential issue to finding misaligned connectives, I left implementing such a feature for future work.
+% \todo[inline]{Talk about how this is a problem in Python, and that there is no real solution. Talk about how it should therefore be an error to mix spaces and tabs, but that checking for this is left as future work.}
 
 \subsection{Diagnosing type mismatches}
 \subsubsection{Feature Overview}
-Although not part of the editor's requirements, the Logical English development team wanted a way to introduce experimental support for typed terms. The argument names in templates would name the type of their argument. This feature would be used for finding type mismatch errors in multiple uses of the same term across a clause. Since this feature is experimental, it was important not to clash with any existing features, or hinder the experience of a user who did not want their types to be checked.
+The most complex feature to implement was the type checking system. Since this feature is experimental, it was important not to clash with any existing features or hinder the experience of a user who did not want their types to be checked.
 \\
 \\
-The way I chose to implement this feature was to have type checking turned off by default, only being turned on with an explicit \codeword{type checking: on} comment. The type hierarchy was also designed to be as minimal as possible, requiring little wording and being easy to read. 
+The approach I chose in implementing type checking was to have the feature disabled, only being enabled with an explicit \codeword{%type checking: on} 
+comment. The type hierarchy was also designed to be as minimal as possible in its presentation, requiring little wording and being easy to read. 
 
 \subsubsection{Initial design: flat type hierarchy}
-When experimenting with implementing this feature, I first implemented type checking before introducing a type hierarchy. In each clause, the literals were extracted, and, using the document's templates, the terms were extracted from each literal. These terms were typed, but there was no notion of sub-type or super-type. If two terms were found that had the same value but different types, a type mismatch error message was generated.
+When experimenting with implementing this feature, I first implemented type checking before introducing a type hierarchy. In each clause, the literals were extracted, and, using the document's templates, the terms were extracted from each literal. These terms were assigned a type, but there was no notion of sub-type or super-type. If two terms were found that had the same value but different types, a type mismatch error message was generated.
 \\ 
 \\
-This design was a lot more inconvenient to use than I expected, with many more error messages being generated than I anticipated. This was mainly because of the default templates. Since the default templates are very broad, they use placeholder type names, such as \codeword{A}, \codeword{B}, \codeword{C}, \codeword{thing}, et cetera. 
+This design was a lot more inconvenient to use than I expected: many more error messages were generated than I anticipated. This was mainly because of the default templates. Since the default templates are very broad, they use short, generic placeholder type names, such as \codeword{an A}, \codeword{a B}, \codeword{a C}, or \codeword{a thing}. 
 \\
 \\
-This caused problems for two reasons. Firstly, the type names clashed with the more specific type names used in other Logical English templates, if a clause used the two templates together. This problem could only be resolved through a type hierarchy, making sure that the types used in the default templates would be super-types of whatever is used in more specific templates.
+This caused problems for two reasons. Firstly, if a clause featured an atomic formula that conformed to a built-in template, then the type names clashed with the more specific type names used in other atomic formulas. This problem could only be resolved through a type hierarchy by ensuring that the types used in the default templates would be super-types of all other types.
 \\
 \\
 However, there was a second issue, in which the type names often clashed amongst themselves. Take, for example, a Logical English program in which the empty list is reversed.
-\begin{lstlisting}[language={LE}]
+\begin{lstlisting}[language={LE},caption={A Logical English program using a default template in which the types are inconsistent.},label={le:default-template-types}]
     the templates are:
     % a default template
     *an A* is the reverse of *a B*. 
     
     the knowledge base Type-Clashing includes:
-    [] is the reverse of [].
+    [] is the reverse of []. %type mismatch error
 \end{lstlisting}
-(In reality, the template above would not need to be stated, since it is included by default.) Here \codeword{[]]} is both of type \codeword{A} and \codeword{B}.
+(In reality, the template above would not need to be stated, since it is included by default.) In Listing \ref{le:default-template-types}, a type mismatch error is generated. This is because \codeword{[]} is both of type \codeword{an A} and \codeword{a B}.
 \todo[inline]{Cite the default templates, or at least, talk about them in the LE specification.}
-The solution to this problem was to rename the types in each of the default templates. With the above template, for instance, being renamed to 
+This required the template argument names to be renamed in light of the fact that the names were now used as types. With the template in Listing \ref{le:default-template-types}, for instance, being replaced with 
 \begin{lstlisting}[language={LE}]
     *a list* is the reverse of *a list*.
 \end{lstlisting}
-there was no type clashing since the types better matched the arguments. Renaming the types would not cause any errors with any older Logical English code, since the argument names of templates were not used by the Logical English engine.
+there would be no type clashing error. Renaming the types would not cause any errors with any older Logical English code, since the argument names of templates were not used by the Logical English engine.
+\todo[inline]{Are the template argument names used at all by the engine?}
 
 \subsubsection{Diagnosing with a type hierarchy}
-First, the type tree is read from the document under the header \codeword{the type hierarchy is:}. The type hierarchy is written very minimalisticly. The tree is written a below the Parsing a text version of a tree is a well-known algorithmic problem.
-\todo[inline]{Cite the solution.}
-Now instead of simply checking whether two type names are equal, the two types are checked to see if one is a subtype of the other. Since types are rerpesented in a tree, this is a simple tree search problem to see whether either type node has a child node with the same name as the other type.
-\todo[inline]{Cite the solution.}
+The type hierarchy was implemented as a node-based tree structure. Each node, represented by the class \codeword{Type}, stored the name of the type that it represented, along with a list of references to each immediate subtype. Due to time constraints, the type hierarchy was given one top type, named \codeword{a thing}, as opposed to the two separate top types prescribed in \ref{section:type-hierarchy}.
+\\
+\\
+One point of consideration was the format in which the user would be required to write the type hierarchy. There are various ways of representing a type hierarchy in text form: the one that balanced both ease of readability and ease of writing was the indented list \cite{indented_list_to_tree}, where each parent is followed by an indented list of its children. (For a further description of how to format such a list, see the User Guide.) It is a standard algorithmic problem to convert an indented list to a tree, to which the solution is well-known. 
+\\
+\\
+Once the type hierarchy was implemented, I could build on the type identification system by using the type hierarchy to check whether two types were compatible. Two types are compatible if they are equal, or if one is a child of the other in the type hierarchy. This reduced checking for type compatibility to a standard tree search problem, to which the solution is again well-known.
 %
 %
 %
@@ -230,20 +238,25 @@ Now instead of simply checking whether two type names are equal, the two types a
 \subsection{How a language server provides quick fixes}
 \todo[inline]{Research this in more detail}
 
-\subsection{Fixing a lack of template for literals}
+\subsection{Generating a new template that matches given atomic formulas}
 \subsubsection{Template Generation using Least General Geneneralisation}
-The first candidate template is generated according to the principle of least general generalisation. This is a principle from Logic-Based Learning which states how to generate a predicate that matches a set of given instantiations of the predicate, that is no more general than is necessary to match all of them.
-\todo[inline]{Research and describe this more.}
-The way this is done in the editor is as follows. Each literal is split into a list of space-separated words. It is assumed that there is a common template which matches all the literals. In the initial design, the predicate words were identified as the intersection of all the words. This criteria is slightly refined, and will be discussed later.
+When a document contains atomic formulas that have no matching template, the editor seeks to generate a new template that matches them all. This is done in multiple iterations, with each iteration generalising the template.
+\\
+\\
+The first candidate template is generated according to the Least General Generalisation algorithm. This is an algorithm written by Gordon Plotkin \cite[p~.155]{lgg_plotkin} that gives, from two or more `words' (corresponding to `atomic formulas'), a single generalisation which has variables wherever the two words have differing terms. This is a generalisation in the sense that both `words' can be obtained by substituting the necessary terms in place of the generalisation's variables. The generalisation is `least general' in the sense that it has no more variables than necessary to be a generalisation.
+\\
+\\
+The algorithm followed by the editor is an adaptation of Plotkin's original algorithm. Each literal is split into a list of space-separated words. It is assumed that there is a common template which matches all the literals. 
+\\
+\\
+Initially, the common surroundings are identified as the intersection of all the space-separated words. On testing, this criteria failed to account for when the same surrounding occurs more than once in each atomic formula. Instead, the surroundings are calculated by stepping through the words of an arbitrarily chosen atomic formula. Each word is checked to see whether it is contained in all other atomic formulas: if so, then it is added to the list of surroundings, and its first occurance is removed from the other lists.
 \\ 
 \\
-Having found all of the predicate words, the terms of the first literal are identified as the words that are not predicate words. Knowing both the predicate words and the terms of the first literal, I then generate a template that matches this. If this same template matches all the other literals, then it is returned.
-\todo[inline]{Write up the algorithm.}
+Having found all of the surroundings, the variables are found by taking the first atomic formula and removing the surroundings. If this template matches all the other atomic formulas, then it is returned. Otherwise, the atomic formulas are assumed to have been incompatible.
 
 \subsubsection{Template Refinement from the re-use of terms}
-It was often the case that the least general generalisation was not enough to generate an accurate template. Either there were too few example literals, or the examples did not vary every term. In trying to fix this problem, I noticed that I was not exploiting the context(i.e. the clause) in which the literal was written. If a literal borrows a term from another literal, then we know about that term, and can generalise it into a variable.
+It was often the case that the least general generalisation was not enough to generate an accurate template. Either there were too few atomic formulas, or the atomic formulas did not vary in every term. In trying to fix this problem, I noticed that I was not exploiting the context(i.e. the clause) in which the literal was written. If a literal borrows a term from another literal, then we know about that term, and can generalise it into a variable.
 \\
 \\
 This was done by giving the \codeword{Template} class a method to generate a more general template by generalising a given term into a variable. Applying this method successively to all the surrounding terms that feature in each template-less literal gave much more accurate templates. This also allowed a single literal to be generalised into a template -- a feature that is impossible with least general generalisation. This also told us the type to place inside the template, since the type of each term is known.
-
 \end{document}
