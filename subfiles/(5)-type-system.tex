@@ -8,6 +8,9 @@ The type system for Logical English had to model Logical English's domain of dis
     \item atomic terms, such as names of real-world objects
     \item atomic formulas, which feature as terms in expressions of modality.
 \end{enumerate}
+Since atomic formulas may contain terms, these terms will also need to be typed.
+\\
+\\
 The type system has two purposes: to effectively assign types to the two categories of terms, and to use the assigned types to identify inconsistent placements of terms. I began by investigating two existing strategies from the field of Type Theory. I evaluated them based on how well they fulfil the two purposes and use what I had learned to construct my own type system.
 
 % This requirement demanded that the type system must have a hierarchy of types, and that the type of atomic formulas did not affect the types of their arguments.
@@ -34,7 +37,7 @@ For instance, all atomic formulas that have the template
   \begin{align*}
      \codeword{*a person*} \times \codeword{*an amount*} \times \codeword{*a lender*}
  \end{align*}
-A full example of the type-checking use of this type hierarchy is given in Listing \ref{le:product-type}
+Listing \ref{le:product-type} gives an example of how Logical English could use this type system to type check atomic formulas.
 \newpage
 \begin{lstlisting}[language=LE,caption={An example of a possible type system where the type inferences and type errors for atomic formulas are based on the types of their terms},label={le:product-type}]
 the type hierarchy is:
@@ -45,38 +48,53 @@ the templates are:
 *a bank* earns money.
 *a person* owes *an amount* to *a bank*.
 *a person* pays *an amount* to *a person*.
-there is a requirement that *a person* x *an amount* x *a lender*.
+*a judge* rules that *a person* x *an amount* x *a lender*.
 
 the knowledge base Requirements includes:
 %types are compatible
-lambda bank earns money if
-     there is a requirement that bob owes 100 to lambda bank. 
+LE bank earns money if
+     judge grey rules that bob owes 100 to LE bank. 
      
 %types are incompatible
-lambda bank earns money if
-    there is a requirement that bob pays 50 to bob. 
+LE bank earns money if
+    judge grey rules that that bob pays 50 to bob. 
 \end{lstlisting}
-In Listing \ref{le:product-type}, the first clause has no error, since \codeword{lambda bank} is of type \codeword{a bank}, which is a subtype of \codeword{a lender}. However, the second clause would be an error, since \codeword{bob} is of type \codeword{a person}, which is not a valid type for the third term of the modalic atomic formula.
+In the first clause of Listing \ref{le:product-type}, there is no error in the use of the the atomic formula \codeword{bob owes 100 to LE bank}. This is because the atomic formula is of the type in Equation \ref{eq:product-type}, which is a subtype of the type that the modalic atomic formula requires. 
+\\
+In the second clause  of Listing \ref{le:product-type}, is an error to use the atomic formula \codeword{bob pays 50 to bob}. This is because \codeword{bob} is of type \codeword{a person}, which makes the type of \codeword{bob pays 50 to bob} incompatible.
 \\
 \\
-This type system classifies atomic formulas syntactically, by the terms that they describe. However, in a given Logical English document, there may be many kinds of atomic formulas that describe the same kinds of terms in the same order, but will have different semantic meaning. Logical English as a language seeks to have as lightweight a syntactic system as possible. Hence I believe it will be more fitting to develop a type system which distinguishes atomic formulas based on their semantics. This prompted me to search for a type system that assigned types to propositions based on their semantics.
+This type system classifies atomic formulas syntactically according to the type of terms that they describe. However, Logical English as a language seeks to minimise the syntactic rules it imposes on the user. I believe that grouping atomic formulas by their syntax is unintuitive; a Logical English document may contain atomic formulas that agree in the order and type of their arguments, but differ in their semantic meaning. Consider, for instance, the templates 
+\begin{lstlisting}[language=LE,caption={Logical English templates that have differing semantic meaning, but would be grouped under the same type.},label={le:same-product-type}]
+    *a person* works at *a company* for *a number* years.
+    *a person* sues *a company* for *a number* dollars.
+    *a person* leaves *a company* for *a number* days.
+\end{lstlisting}
+The type system will not notice any errors if atomic formulas that correspond to the templates in Listing \ref{le:same-product-type} are interchanged. However, users may feel that these templates ought to be categorised differently.
+\\
+\\
+This type system may instead be better-suited for typing compound terms. Semantically, compound terms are described much more strongly by the types of their terms and the order in which they appear. This means that they can be more readily identified with sequences of terms, allowing them to be described by product types. Atomic formulas, however, seemed to be better suited for being typed based on their semantics.
+% his prompted me to search for a type system that assigned types to propositions based on their semantics.
+% However, in a given Logical English document, there may be many kinds of atomic formulas that describe the same kinds of terms in the same order, but differ in their semantic meaning. Logical English as a language seeks to have as lightweight a syntactic system as possible. Logical English emphasises intuitiveness and ease of use, with syntactic grammar . Hence I believe it will be more fitting to develop a type system which distinguishes atomic formulas based on their semantics. This prompted me to search for a type system that assigned types to propositions based on their semantics.
 
 \subsection{Propositions as Types}
 \label{section:props-as-types}
-Under the Curry-Howard correspondence, a proposition corresponds to a type. This correspondence is based on the semantic logical meaning of each proposition. While explaining the details of this correspondence is outside the scope of the project, a simple example is, for instance, the clause $A \land B \longrightarrow B \land A$. This clause corresponds to the type of functions $(A \times B) \longrightarrow (B \times A)$ \cite{lambda_calc}.
+Under the Curry-Howard correspondence, a proposition corresponds to a type. This correspondence is based on the logical semantic meaning of each proposition. 
 \\
 \\
-This representation would be highly useful if Logical English were to concern itself with automated theorem proving. The Curry-Howard correspondence is the foundation of theorem provers such as Coq and Agda, which use the correspondence between propositions and types in their approach at proving theorems: a theorem can be proven if there is a term (called `a witness') that is of that type. In the example above, a witness of $A \land B \longrightarrow B \land A$ is a function of type $(A \times B) \longrightarrow (B \times A)$, such as the function that swaps the two input values \cite{lambda_calc}.
+As an illustrative example, consider the clause $A \land B \longrightarrow A$. Informally, this clause can be argued for by showing that, if we have both $A$ and $B$ together, then we can always produce $A$. This way of `producing $A$ from having both $A$ and $B$' would, through the lens of typed lambda calculus, be a function from $A \times B$ to $A$. The Curry-Howard correspondence therefore states that the corresponding type of the clause $A \land B \longrightarrow A$ is the type of functions $A \times B \longrightarrow A$ \cite{lambda_calc}.
 \\
 \\
-This system gives us a powerful way to reconsider each atomic formula as corresponding to a unique type. However, it does not give us much in terms of finding a single type that multiple atomic formulas can be elements of. Type theory would allow us to assign types to atomic formulas -- the theory allows us to have types whose elements are types \cite[p.~24]{homotopy_type_theory}. But applying a single type to multiple atomic formulas must be done ourselves, somewhat arbitrarily. Instead of the types that group atomic formulas being based on logical semantics, the types could be based on the semantics of the atomic formula as determined by the user. This prompted me to investigate a type hierarchy that was entirely user-driven, based on how the user chooses to group atomic terms or atomic formulas.
+This representation would be highly useful if Logical English were to concern itself with automated theorem proving. The Curry-Howard correspondence is the foundation of theorem provers such as Coq and Agda, which use the correspondence between propositions and types in their approach at proving theorems: a theorem can be proven if there is a term (called `a witness') that is of that type. Under the Curry-Howard correspondence, the clause $A \land B \longrightarrow A$ can be proven by the fact that there is a function (in Coq, called \codeword{fst}) from $A \times B$ to $A$ \cite{lambda_calc}.
+\\
+\\
+This system gives us a powerful way to reconsider each atomic formula as being a unique type. However, it does not give us much in terms of finding a single type that multiple atomic formulas can be elements of. Type theory allows us to assign types to atomic formulas; there are types whose elements are types \cite[p.~24]{homotopy_type_theory}. But these types must be determined ourselves, not by the theory. This means that instead of atomic formulas being grouped by their logical semantics, they can be grouped by the user. This prompted me to investigate a type hierarchy that was entirely user-driven, based on how the user chooses to group atomic terms or atomic formulas.
 
 % However, this type system is unnecessarily complicated. Our type system does not need to assign types to clauses, but only to atomic formulas. Atomic formulas under the Curry-Howard correspondence would correspond to atomic types: the $A$ or the $B$ in the above example. The power of the Curry-Howard correspondence is in analysing complex propositions: it offers no additional value in analysing atomic formulas.
 
-\section{The Type Hierarchy}
+\section{The User-based Type Hierarchy}
 \label{section:type-hierarchy}
-Here I explain the specification I set for a type hierarchy for Logical English.
-
+From exploring two existing possibilities for a type system, I determined that a new type system is needed which is fundamentally user-driven. The user would group atomic terms and atomic formulas in the same way: by assigning types that are entirely of their own choosing, having no connection to either either syntax or logical semantics. Here I give a specification of this new type system, based on existing features of Logical English and on the needs of the user.
 \subsection{The need for a hierarchy}
 One motivation for a type hierarchy was explained in section \ref{section:props-as-types}. Another motivation for a type hierarchy comes from the structure of English sentences. Sentences in English often contain terms whose implicit types change in specificity. 
 \todo[inline]{Find a study of this.}
@@ -92,9 +110,16 @@ When studying what kind of a type hierarchy would emerge from this relation, I f
     \item \textbf{Anti-symmetricity:} If $A \subtype B$ and $B \subtype A$ then the type $A$ and $B$ can be used interchangeably. This means that, in terms of checking for incompatible usages of terms, $A$ and $B$ are equal. 
     \item \textbf{Transitivity:} If terms of type $A$ can be used whenever terms of type $B$ are expected, and terms of type $B$ can be used whenever terms of type $C$ are expected, then it is safe to use terms of type $A$ whenever terms of type $C$ are expected.
 \end{itemize}
-Since $\subtype$ is a partial order, this means that the type hierarchy induced by $\subtype$ forms a Transitive Directed Acyclic Graph.
 
 \subsection{The structure of the type hierarchy}
+\subsubsection{The structure induced by the subtype relation}
+Since $\subtype$ is a partial order, the type hierarchy induced by $\subtype$ forms a Transitive Directed Acyclic Graph\cite[p.~49]{poset_dag}. This imposes the following requirements on the type hierarchy:
+\begin{enumerate}
+    \item Edges in the hierarchy are directed, with edges from from types to their subtypes
+    \item There are no loops in the type hierarchy: it must be impossible to start at a type and, by only visiting other subtypes, arrive back at the same type
+    \item If $A \subtype C$, then the connection from $A$ to $C$ can be omitted if there is another type $B$ with $A \subtype B$ and $B \subtype C$
+\end{enumerate}
+
 \subsubsection{The type hierarchy is disconnected}
 It must always be an error to use an atomic term whenever an atomic formula is expected. This means that the sub-hierarchy for atomic terms and the sub-hierarchy for atomic formulas must be disconnected Transitive Directed Acyclic Graphs. 
 

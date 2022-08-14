@@ -1,0 +1,160 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+\chapter{Logical English}
+\label{chapter:le}
+% This chapter introduces the features of Logical English, then relates them to the functional requirements of the editor.
+To begin, I introduce the logical programming language `Logical English' for which the editor is built.
+\\
+\\
+% \section{Logical English}
+Logical English is a logical and declarative programming language. Logical English is an example of a controlled natural language; it is written as a structured document, with a syntax that has few symbols and which resembles natural English. \cite{logical_english}.
+
+\section{A brief overview}
+Logical English's allows knowledge bases to be represented as logical `rules' or `facts', which can then be used to answer queries. 
+
+\subsection{Atomic Formulas}
+A `fact' can be represented in Logical English as an \textit{atomic formula}. An atomic formula is a statement, which can be true or false and cannot be broken down into any smaller statements. Examples in Logical English include:
+\begin{lstlisting}[language={LE},caption={An example of three atomic formulas in Logical English.},label={le:atomic formulas}]
+    fred bloggs eats at cafe bleu.
+    emily smith eats at a cafe.
+    cafe bleu sells sandwiches.
+\end{lstlisting}
+As in listing \ref{le:atomic formulas}, atomic formulas may include constants, such as \codeword{fred bloggs} and \codeword{cafe bleu}, or variables, such as \codeword{a cafe}. These will be discussed further.
+
+
+\subsection{Clauses}
+Clauses are rules, starting with an atomic formula, that determine when the atomic formula is logically implied. Examples include:
+\newpage
+\begin{lstlisting}[language={LE},label={le:clauses},caption={Examples of clauses in Logical English.}]
+    fred bloggs eats at cafe bleu if
+        fred bloggs feels hungry.
+
+    emily smith eats at a cafe if
+        emily smith feels hungry
+        and the cafe sells sandwiches.
+
+    emily smith feels hungry.
+\end{lstlisting}
+Clauses begin with a `head', which is the atomic formula that is logically implied by the rest of the clause. If there are no other atomic formulas, then the head is taken to be logically implied in all cases. Otherwise, the head is followed by the keyword \codeword{if}, then a number of `body' atomic formulas that logically imply the head. These body atomic formulas are separated by the connectives \codeword{and}, \codeword{or}, or \codeword{it is not the case that}.
+\\
+\\
+A variable is introduced for the first time in a clause by beginning its name with \codeword{a} or \codeword{an}. In Listing \ref{le:clauses}, \codeword{a cafe} is a variable. Subsequent uses of the same variable start with \codeword{the}. This means that in Listing \ref{le:clauses} if we were later given (or could later derive) that
+\begin{lstlisting}[language={LE}]
+    cafe jaune sells sandwiches
+\end{lstlisting}
+then the atomic formula \codeword{emily smith eats at cafe jaune} would be logically implied. 
+
+\subsection{Templates}
+The words in an atomic formula can have one of two functions. In an atomic formula, a word could either be part of a \textit{term}: an object which the atomic formula describes. Otherwise, a word is part of the \textit{predicate}: the name of the relation or assertion that is applied to the terms. Viewed this way, terms are also known as \textit{predicate arguments}.
+\\
+\\
+Templates are used in Logical English to clarify which parts of the atomic formula are terms, and which words are part of the predicate. An atomic formula's template is written as the atomic formula with each of its terms replaced with placeholders. These placeholders start with \codeword{a} or \codeword{an}, and are surrounded by asterisks. 
+\\
+\\
+For example, the template
+\begin{lstlisting}[language={LE},caption={A template in Logical English},label={le:template}]
+    *a cafe* serves *an item* from *a time* to *a time*.
+\end{lstlisting}
+is a template for the atomic formula
+\begin{lstlisting}[language={LE}]
+    cafe jaune sells crepes from breakfast to noon.
+\end{lstlisting}
+This template allows the terms to be identified as \codeword{cafe jaune}, \codeword{crepes}, \codeword{breakfast} and \codeword{noon}. In Logical English, every atomic formula must have a corresponding a template.
+
+\section{The structure of a Logical English program}
+A complete Logical English program features atomic formulas, clauses and templates. An example is provided in Listing \ref{le:short}.
+\newpage
+\begin{lstlisting}[language={LE},caption={A short Logical English program.},label={le:short}]
+the templates are:
+*a person* travels to *a place*.
+*a place* has *an item*.
+
+the knowledge base Travelling includes:
+fred bloggs travels to a holiday resort if 
+    the holiday resort has swimming pools.
+
+emily smith travels to a museum if
+    the museum has statues 
+    and the museum has ancient coins.
+
+scenario A is:
+the blue lagoon has swimming pools.
+the national history museum has statues.
+
+query one is:
+which person travels to which place.
+\end{lstlisting}
+The rest of this section expands on the features shown in Listing \ref{le:short}, as well as other features of Logical English.
+\subsection{Templates}
+The program starts with the template section, with header \codeword{the templates are:}, in which the templates are defined. 
+
+\subsection{Modal Atomic Formulas}
+A modal atomic formula contains another atomic formula as a term. For instance, a modal atomic formula could refer to an event, an obligation or an action. 
+\\
+\\
+A modal atomic formula must have the keyword \codeword{that} preface the atomic formula that it describes. An example is given in Listing \ref{le:modal}.
+\begin{lstlisting}[language=LE,label={le:modal},caption={An example of an atomic formula featuring in a modal atomic formula.}]
+the templates are:
+*a bank* receives money.
+*a person* pays money to *a bank*.
+there is a requirement that *an action*.
+
+the knowledge base Payments includes:
+LE bank receives money if
+    there is a requirement that bob pays money to LE bank.
+\end{lstlisting}
+In Listing \ref{le:modal}, the atomic formula \codeword{bob pays money to LE bank} features in the modal atomic formula \codeword{there is a requirement that _}.
+
+\subsection{Clauses}
+\label{section:knowledge-base}
+\subsubsection{The Knowledge Base}
+The program's clauses are given in the knowledge base. The knowledge base can either start with the header \codeword{the knowledge base includes:}, or it can be given a name, in which case it starts with the header \codeword{the knowledge base <name> includes:}. 
+
+\subsubsection{Connectives in Clauses}
+The body atomic formulas in a clause are separated by logical connectives. The precedence of these connectives is clarified by indentation; connectives that have higher precedence are indented further. For example, \texttt{(A and B) or C} is written
+\newpage
+\begin{lstlisting}[language={LE}]
+    A
+        and B
+    or C.
+\end{lstlisting}
+and \texttt{A and (B or C)} is written
+\begin{lstlisting}[language={LE}]
+    A
+    and B
+        or C.
+\end{lstlisting}
+There is no default preference over \codeword{and} and \codeword{or}: it is an ambiguity error to write
+\begin{lstlisting}[language={LE}]
+    A 
+    and B
+    or C.
+\end{lstlisting}
+\\
+\\
+% Like in \ref{le:short}, a variable is introduced for the first time by beginning its name with \codeword{a} or \codeword{an}.  Subsequent uses of the variable must then start with \codeword{the}. Variables quantify over all the terms that are used in the knowledge base.
+
+\subsection{Scenarios}
+Various scenarios can optionally be given. Scenarios contain atomic formulas that are taken to be true when running a query. Scenarios must have a name, and must start with 
+\codeword{scenario <name> is:}. 
+
+\subsection{Queries}
+The final sections of a Logical English program are the queries. A query consists of one or more questions that the Logical English engine seeks to answer. These questions ask for which terms make an atomic formula true. The terms that the query is to look for are written as placeholders that start with \codeword{which}. 
+\\
+\\
+For example, running query one with scenario A from \ref{le:short}
+\begin{lstlisting}[language={LE}]
+    scenario A is:
+    the blue lagoon has swimming pools.
+
+    query one is:
+    which person travels to which place.
+\end{lstlisting}
+gives the answer
+\begin{lstlisting}[language={LE}]
+    fred bloggs travels to the blue lagoon.
+\end{lstlisting}
+Query one could also be run with no scenario supplied, but doing so would yield no answer.
+
+\end{document}

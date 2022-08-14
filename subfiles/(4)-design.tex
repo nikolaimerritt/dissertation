@@ -9,7 +9,7 @@
 \label{fig:system-overview}
 \end{figure}
 \todo[inline]{Increase the font size.}
-The Logical English editor is a complex system with multiple components. So before I go into detail describing how the editor was designed, I believe it will be helpful to supply some context by giving an overview of the editor's components and how they relate to each other.
+The Logical English editor is a complex system with multiple components. Before I go into detail describing how the editor was designed, I believe it will be helpful to supply some context by giving an overview of the editor's components and how they relate to each other.
 \\
 \\
 The overall structure of the editor is described in Figure \cite{fig:system-overview}. The user interacts with the editor through the language client. The language client takes on the rules of the syntax highlighter to highlight basic syntactic features of the user's document. The language client highlights semantic features of the document, along with presenting any code completions or quick fixes, by routinely polling the language server for this data. The language server presents diagnostics by requesting diagnostic data from the server whenever the user makes a change to the document.
