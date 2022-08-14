@@ -1,10 +1,10 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
 \chapter{Project Requirements}
-In this section I describe the requirements that my project was to meet. These were decided on through discussions between myself and my supervisors. The requirements were based purely on the user functionality that the editor provides, which allowed for a lot of room in my approach to meeting them.
+In this section I describe the requirements that my project was to meet. These were decided on through discussions between myself and my supervisors. The requirements were based purely on the user functionality that the editor provides.
 \\
 \\
-The editor must consist of three components to assist Logical English: a Syntax Highlighter, a Language Server and a Language Client. The syntax highlighter and language server will be cross-editor and cross-platform. This requirement meant that the editor can be used with many of the most popular programming editors on various operating systems with minimal configuration. Out of the three components, it is the language server that is the most complex.
+The editor must consist of three components to assist Logical English: a Syntax Highlighter, a Language Server and a Language Client. The syntax highlighter and language server must be cross-editor and cross-platform. This requirement meant that the editor can be used with many of the most popular programming editors on various operating systems with minimal configuration. Out of the three components, it is the language server that is the most complex.
 
 \section{The Language Client}
 The user uses the language client to interact with the features provided by the language server and syntax highlighter. Therefore, the language client must convey changes in the document to the syntax highlighter and language server. The language client must also incorporate the responses from the language server and syntax highlighter.
