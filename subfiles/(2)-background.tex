@@ -2,6 +2,7 @@
 \begin{document}
 \chapter{Literature Review}
 \section{Language Servers}
+\label{section:lit-review-servers}
 Language Servers have proven to be a powerful tool in creating cross-editor support for a wide variety of programming languages. As noted by Rask et al \cite[]{standardised_lsp_extensions}, the Language Server Protocol, which language servers use to communicate with code editors, ``changed the field of IDEs". This is because a language server can easily communicate with any IDE that supports the protocol, thus allowing IDEs to easily support a new language. Further, in surveying the effectiveness of language servers when building a language server for OCaml, Bour et al \cite[]{merlin_experience_report} note that ``adding support for a new editor to a language server requires no language-specific logic". This allows people who are not yet familiar with a given language to link a language server to their chosen editor that supports the Language Server Protocol, and begin programming in the editor. 
 \\ \\
 However, building a language server does not come without difficulties. Bour et al \cite[]{merlin_experience_report}, and the Visual Studio Code Language Server Extension documentation \cite[]{vsc_langserver_docs}, describe two main challenges that Language Servers face, that of ``incrementality" and ``partiality":
