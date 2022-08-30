@@ -1,9 +1,10 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
 \chapter{Implementation}
+\label{chapter:impl}
 \section{Data Representation}
 \subsection{Description of Problem}
-When providing diagnostics, semantic highlighting, code completion or quick fixes, the initial task of the language server is to extract the document's templates and atomic formulas. It was clear early on that these are the fundamental problems: the better the representation the editor has for the templates and atomic formulas, the easier all subsequent work on them becomes. It was important to design representations that:
+When providing diagnostics, semantic highlighting, code completion or quick fixes, the initial task of the language server is to extract the document's templates and atomic formulas. It was clear early on that these are the two fundamental problems: the better the representation the editor has for the templates and atomic formulas, the easier all subsequent work on them becomes. It was important to design representations that:
 \begin{itemize}
     \item were lightweight: templates and atomic formulas would be reloaded every time the document received an update
     \item focused on grammar: it should be easy to query atomic formulas or templates based on their grammatical structure
@@ -13,7 +14,7 @@ When providing diagnostics, semantic highlighting, code completion or quick fixe
 Based on the last requirement, I first designed a representation for templates, then applied the ideas ideas to design a similar representation for atomic formulas. 
 
 \subsubsection{Initial Template Design}
-Initially, the most obvious and simple design for a template was as a list of tokens, called `elements' \footnote{The name `elements' is used to distinguish from the tokens used in highlighting the document}, each element being a string. These elements would either refer to a template's argument name, or text that surrounded the arguments (and therefore constituted part of the predicate name). For instance, the Logical English template
+Initially, the most obvious and simple design for a template was as a list of tokens, called `elements' \footnote{The name `elements' is used to distinguish from the tokens used in highlighting the document}, each element being a string of characters. These elements would either refer to a template's argument name, or text that surrounded the arguments (and therefore constituted part of the predicate name). For instance, the Logical English template
 \begin{lstlisting}
     *a person* shops at *a shop* to buy *an item*.
 \end{lstlisting}
@@ -21,68 +22,80 @@ is represented as the list of strings
 \begin{lstlisting} 
     ["*a person*", "shops at", "*a shop*", "to buy", "*an item*"]
 \end{lstlisting}
-It was quite efficient to generate this list of elements. The list was achieved through splitting a Logical English template by a regular expression that identified substrings of the form \codeword{*a __*} or \codeword{*an __*}. 
+It was quite efficient to generate this list of elements. The list was achieved through splitting a Logical English template by a regular expression that identified argument names: substrings of the form \codeword{*a __*} or \codeword{*an __*}. 
 \\
 \\
-Although the design was lightweight and easy to implement, the more the design was used the clearer it became that the did not capture enough of Logical English's grammar. Lots of duplicate work had to be re-done whenever this representation was used: specifically, identifying which elements are template arguments, along with filtering the list of elements to obtain the list of argument names, or the list of strings that constituted the predicate name. 
+Although the design was lightweight and easy to implement, the more the design was used the clearer it became that the design did not capture enough of Logical English's grammar. Lots of duplicate work had to be re-done whenever this representation was used: specifically, identifying which elements are template arguments,  filtering the list of elements to obtain the list of argument names, or to obtain the list of strings that constituted the predicate name. 
 \\ 
 \\
-It became clear that, effectively, the list consisted of two different types of items: template arguments, on the one hand, and surrounding text on the other. Based on the awkwardness of use and the fact that I had plans to give template arguments a richer type structure, it was clear that the design needed improving.
+It became clear that, effectively, the list consisted of two different types of items: template arguments, on the one hand, and surrounding text on the other. Based on the awkwardness of use and the fact that I had plans to give template arguments a richer type structure, the design was improved.
 
 \subsection{Element Representation}
 The next level of abstraction was to abstract the two different kinds of elements into two different types.
-The class \codeword{Type} was created to represent a template argument \footnote{Before I implemented the type-checking system, this class was called `TemplateArgument'. However, it will be easier to now only describe the final iteration of the editor.}. This \codeword{Type} class contained the template argument's name and was given additional structure when the type hierarchy was implemented. The class \codeword{Surrounding} was created to represent surrounding text that lies between types. As per my design philosophy, these are both lightweight types that store immutable values.
+The class \codeword{Type} was created to represent a template argument \footnote{Before I implemented the type-checking system, this class was called `TemplateArgument'. However, it will be easier to now only describe the final iteration of the editor.}. This \codeword{Type} class contained the template argument's name, along with additional structure used to implement the type hierarchy, discussed in Section \ref{section:diagnosing-with-type-hierarchy}. The class \codeword{Surrounding} was created to represent the surrounding text that lies between types. As per the design philosophy, these are both lightweight classes that store immutable values.
 
 \subsection{Template Representation}
 A template's elements were now a list consisting of either \codeword{Type} or \codeword{Surrounding} objects.
-The next logical step was to have a \codeword{Template} class to be a wrapper class around this list. The \codeword{Template} class provided a read-only view to the list of elements. It also exposed methods that queried the elements. These methods included obtaining the template's types or surrounding text -- what was previously done manually -- along with more advanced queries that will be discussed later.
+The next logical step was to construct a \codeword{Template} class to be a wrapper class around this list. The \codeword{Template} class provided a read-only view to the list of elements, exposing methods that allowed the elements to be queried. These methods included obtaining the template's types or surrounding text -- what was previously done manually -- along with more advanced queries that will be discussed later.
 \\
 \\
 An overview of the above design is given in pseudocode in Listing \ref{impl:type-surrounding-template}
 \begin{lstlisting}[language={TypeScript}, label={impl:type-surrounding-template}, caption={An overview of the \codeword{Type}, \codeword{Surrounding} and \codeword{Template} classes.}]
     class Type:
-        name: constant string
+        name: string
         ...
 
     class Surrounding:
-        text: constant string
+        text: string
         ...
 
     class Template:
-        elements: constant (Type | Surrounding)[]
-        public getTypes(): Type[]
-        public getSurroundings(): Surrounding[]
+        elements: (Type | Surrounding)[]
+        getTypes(): Type[]
+        getSurroundings(): Surrounding[]
         ...
 \end{lstlisting}
 
 \subsection{Atomic Formula Representation}
-Once I had solved the \codeword{Template} design problem, I applied the same principles to creating a design for the atomic formulas. Templates consist of either surrounding text or type names; atomic formulas consist of either surrounding text or terms. Thu the analogue design for atomic formulas was clear. Create a type \codeword{Term} to represent terms of an atomic formula. Then create an \codeword{AtomicFormula} class with an \codeword{elements} list that consists of either \codeword{Surrounding} or \codeword{Term} objects. The description for the \codeword{AtomicFormula} class is given in Listing \ref{impl:atomic-formula}
+Once I had solved the \codeword{Template} design problem, the same design principles were applied to create a representation for atomic formulas. Templates consist of either surrounding text or type names; atomic formulas consist of either surrounding text or terms. Thus the analogue design for atomic formulas was clear: using a type \codeword{Term} to represent terms of an atomic formula, the \codeword{AtomicFormula} class would hold an \codeword{elements} list that consists of either \codeword{Surrounding} or \codeword{Term} objects. An overview for the \codeword{AtomicFormula} class is given in Listing \ref{impl:atomic-formula}
 \\
 \\
 \begin{lstlisting}[language={TypeScript}, label={impl:atomic-formula}, caption={An overview of the \codeword{AtomicFormula} class.}]
     class AtomicFormula:
-        elements: constant (Surrounding | Term)[]
-        type: constant Type
-        public getTerms(): Term[]
-        public getSurroundings(): Surrounding[]
+        elements: (Surrounding | Term)[]
+        type: Type
+        getTerms(): Term[]
+        getSurroundings(): Surrounding[]
         ...
         
 \end{lstlisting}
-Unfortunately, designing the type \codeword{Term} was not straightforward. As discussed in Section \ref{section:type-system-requirements}, a term of an atomic formula can either be data, or (if the atomic formula is higher-order) another atomic formula. The \codeword{Data} class holds the Logical English term it represents as a simple string. However, since both kinds of terms are typed, both the \codeword{Data} class and the \codeword{AtomicFormula} class also  hold a reference to their corresponding \codeword{Type} object.
+Unfortunately, designing the type \codeword{Term} was not straightforward. As discussed in Section \ref{section:categories-of-terms}, there are four categories of terms:
+\begin{enumerate}
+    \item constants,
+    \item complex terms,
+    \item variables, and
+    \item atomic formulas.
+\end{enumerate}
+Due to time constraints, parsing complex terms as constituting smaller terms was left for future work: instead, complex terms are parsed as constants. This then motivated two new classes: \codeword{Constant} to represent constant terms, and \codeword{Variable} to represent variable terms. From this, \codeword{Term} objects were allowed to either be \codeword{Constant}, \codeword{Variable} or \codeword{AtomicFormula} objects.
+% , or (if the atomic formula is higher-order) another atomic formula. Ignoring the possibility of compound data for now, the \codeword{Data} class holds the Logical English term it represents as a simple string. Since both kinds of terms are typed, both the \codeword{Data} class and the \codeword{AtomicFormula} class also  hold a reference to their corresponding \codeword{Type} object.
 \\
 \\
-Initially it seemed like the \codeword{Data} and \codeword{AtomicFormula} classes were enough to capture the possibilities of the values of Logical English terms. However, when I began working on parsing atomic formulas it became clear that there was a third option. Consider the Logical English extract in Listing \ref{le:modal-subformula-lacks-template}.
-\begin{lstlisting}[language={LE}, caption={An extract of a Logical English document containing a higher-order atomic formula, in which the argument atomic formula does not match a template. Neither the \codeword{Data} class nor the \codeword{AtomicFormula} class can properly represent the argument atomic formula.}, label={le:modal-subformula-lacks-template}]
+Initially it seemed that the \codeword{AtomicFormula} class was enough to capture the content of user-written clauses. However, when I began working on parsing atomic formulas it became clear that many Logical English documents would require another class. Consider the Logical English extract in Listing \ref{le:modal-subformula-lacks-template}.
+\begin{lstlisting}[language={LE}, caption={An extract of a Logical English document in which the condition of a clause does not have any matching template. Because of this, the \codeword{AtomicFormula} class can properly represent the argument atomic formula.}, label={le:modal-subformula-lacks-template}]
     the templates are:
-    *a person* belies that *a proposition*.
+    *a person* plays tennis on *a day*.
 
-    the knowledge base Higher-Order Atomic Formula includes:
-    fred believes that the moon is made of cheese.
+    the knowledge base Tennis includes:
+    abdul plays tennis on a day if
+        the day is a bank holiday.
 \end{lstlisting}
-In Listing \ref{le:modal-subformula-lacks-template}, the two arguments to the atomic formula \codeword{fred believes that the moon is made of cheese} are \codeword{fred} and \codeword{the moon is made of cheese}. The latter term \codeword{the moon is made of cheese} appears to be another atomic formula, since it its prefaced by \codeword{that}. This means that it is incorrect to represent the term with the \codeword{Data} class. However, the term does not have any corresponding templates; Logical English cannot extract its terms or its surrounding text. This means that the \codeword{AtomicFormula} class cannot represent the term either.
+In Listing \ref{le:modal-subformula-lacks-template}, the entry \codeword{the day is a bank holiday} appears to be an atomic formula, since it is a condition in a clause. However, since the entry does not conform to any template, terms cannot be parsed from it. This means that the \codeword{AtomicFormula} class cannot represent the entry.
 \\
 \\
-This prompted a third class, \codeword{TemplatelessFormula}, to represent atomic formulas that did not conform to a template and could not have their elements extracted. Since it was always a possibility that when an atomic formula -- or any term at all -- was expected, the result could be a \codeword{TemplatelessFormula}, this introduced many edge cases into the codebase. This was a symptom of the problem of partiality discussed in Section \ref{section:lit-review-servers}.
+This prompted a new class, \codeword{TemplatelessFormula}, to represent entries that appeared in clauses but did not conform to a template. Writing such entries is an error in Logical English, so this class was crucial in diagnosing errors. 
+\\
+\\
+Since it was always a possibility that a condition in a clause could be a \codeword{TemplatelessFormula} when an atomic formula was expected, this introduced many edge cases into the codebase. This was a symptom of the problem of partiality discussed in Section \ref{section:lit-review-servers}.
 % While working on the editor, I found that atomic formulas did not need as elaborate a design as templates: in fact, they did not even need their own class. In broad terms, a template acts on atomic formulas -- through, for example, extracting terms, or checking whether a given atomic formula matches the template's form. While templates have rich functionality, atomic formulas are passive objects that are acted on.
 % \\
 % \\
@@ -101,7 +114,7 @@ This prompted a third class, \codeword{TemplatelessFormula}, to represent atomic
 Along with representing Logical English data, it was also important to be able to refer to where the data lies in the document. This is crucial in highlighting features of the document, providing diagnostic error underlines, and identifying the current atomic formula that the user is typing. 
 \\
 \\
-The immediate approach would have been to add a \codeword{range} field to each of the above classes that specifies where the data begins and ends in the document. However, attaching range data to the representations themselves was not an option for two reasons: by the principle of Separation of Concerns \cite[p.~183]{software_handbook_soc} the representations are ``abstract'': they represent what a Logical English construct is, not where it happens to lie in a document. 
+The immediate approach would have been to add a \codeword{range} field to each of the above classes that specifies where the data begins and ends in the document. However, attaching range data to the classes themselves was not an option for two reasons: by the principle of Separation of Concerns \cite[p.~183]{software_handbook_soc} the classes are ``abstract'' representations of Logical English construct: they represent what a Logical English construct is, not where it happens to lie in a document. 
 % Further, it is important to know where bodies of raw text (i.e. \codeword{string} objects) are. These do not have range data.
 
 \subsubsection{ContentRange$<$T$>$}
@@ -111,99 +124,158 @@ The alternative solution was to have a class that wraps data, supplying an addit
 %         content: T
 %         range: Range
 % \end{lstlisting}
-The \codeword{range} field stores the beginning and the end of the content, in the \codeword{(line number, character number)} form that \codeword{vscode-langaugeserver} uses \footnote{A downside to this approach is that \codeword{T} could be any type whatsoever, including types that do not make sense (such as the \codeword{void} type, or the type of a function). However, there are not enough commonality between valid values of \codeword{T}, such as \codeword{string}, \codeword{Template} or \codeword{AtomicFormula}, to constrain \codeword{T} effectively.}.
-\\
-\\
+The \codeword{range} field stores the beginning and the end of the content, in the \codeword{(line number, character number)} form that \codeword{vscode-langaugeserver} uses \footnote{A downside to this approach is that \codeword{T} could be any type whatsoever, including types that do not make sense (such as the \codeword{void} type, or the type of a function). However, there is not enough commonality between valid values of \codeword{T}, such as \codeword{string}, \codeword{Template} or \codeword{AtomicFormula}, to constrain \codeword{T} effectively.}.
+% %
+% %
+% %
+\section{Parsing the Document}
+\subsection{Extracting the document's templates}
+Each template is found below the header \codeword{the templates are:}. The types of the template are found by finding substrings of the form \codeword{*a __*} or \codeword{*an __*}: all remaining substrings are surrounding text.
 
-%
-%
-%
-\section{Semantic Highlighting}
-\subsection{An Overview}
-The semantic highlighting feature highlights the terms of each atomic formula in the document. To identify the terms, the templates are first read from the document and represented as \codeword{Template} objects. To each atomic formula, the closest-matching \codeword{Template} object is assigned. Using these \codeword{Template} objects, the terms of atomic formulas terms are recursively identified and highlighted.
-
-% \subsection{How a Language Server highlights}
-% \todo[inline]{Research this in more detail}
-
-% \subsection{Template Parsing}
-% In parsing the templates, the lines containing templates are found, starting at the header \codeword{the templates are:}, and continuing until either another header or the end of the document is reached. 
-% \\ 
-% \\
-% The \codeword{Template} class then constructs a template from each line. Each substring of the form \codeword{*a _*} or \codeword{*an _*} is taken to be a type name, and the corresponding \codeword{Type} object is put in the corresponding place. All other substrings are wrapped in a \codeword{Surrounding} object.
+\subsection{Extracting the document's clauses}
+The clauses are found below headers of the form \codeword{the knowledge base __ includes:}. This text is split into clauses by using the fact that each clause must end with a full stop. Each clause, along with its range in the document, is passed to the error diagnosis functionality as a \codeword{ContentRange<string>}.
 \\
 \\
-The central problem here is extracting the elements of an atomic formula according to the template that the atomic formula corresponds to. 
-Following the principle of Problem Decomposition, the problem of judging how well an atomic formula matches a template is broken down using the above problem:
-\begin{enumerate}
-    \item extract the atomic formula elements under the (temporary) assumption that the atomic formula fully matches the template
-    \item compare the resulting elements against the template's elements to score how well the atomic formula matches the template
-\end{enumerate}
+The conclusion and conditions of each clause were found through splitting the clause by Logical English's connectives. Of these strings, those that had matching templates were parsed into atomic formulas using the techniques in Section \ref{section:extract-atomic-formulas}. Each atomic formula was packaged with its range in the document and passed to the semantic highlighting section as \codeword{ContentRange<AtomicFormula>} objects. If a conclusion or condition did not match any template, it was passed to the error diagnosis and quick-fix sections as a \codeword{ContentRange<TemplatelessFormula>} object.
 
-\subsection{Extracting the elements of an atomic formula}
-This is a fundamental problem that is used by many of the language server's features, such as type checking a literal's terms and ranking literal completions, along with semantic highlighting. This lead me to spend a long time trying different approaches to this problem.
-\todo[inline]{Talk about these other algorithms and their limitations.}
-
-The final algorithm leverages the assumption that the template matches the atomic formula. By this assumption, the template and the atomic formula share the same surroundings. Thus comparing the template's surroundings against the atomic formula yields the atomic formula's terms. 
+\subsection{Extracting the document's atomic formulas}
+\label{section:extract-atomic-formulas}
+% \subsubsection{An overview}
+Atomic formulas are parsed into their \codeword{AtomicFormula} representation according to their matching template. This is a complex task and is broken down into multiple sub-problems.
 \\
 \\
-The resulting algorithm written in TypeScript is 55 lines long. However, with a liberal use of pseudocode, it is condensed in Listing \ref{alg:template-extract-terms}.
+The core sub-problem is to extract an atomic formula with respect to a given template. Assuming that the atomic formula matches the template, the template's form is used to extract the atomic formula's elements.
+\\
+\\
+This algorithm is used in multiple places. Extracting the full representation of a higher-order atomic formula is done by recursively applying the algorithm to the higher-order atomic formula's terms. Surprisingly, the algorithm is also used in what is logically the prior task: determining how well an atomic formula, or a partially-written atomic formula, matches a template.
+
+% Parsing atomic formulas is a fundamental problem that is used by many of the language server's features, such as type checking a literal's terms and ranking literal completions, along with semantic highlighting. 
+
+% This lead me to spend a long time trying different approaches to this problem.
+% \todo[inline]{Talk about these other algorithms and their limitations.}
+\subsubsection{Extracting an atomic formula's elements with respect to a template}
+The algorithm leverages the assumption that the template matches the atomic formula. By this assumption, the template and the atomic formula share the same surroundings. Thus comparing the template's surroundings against the atomic formula yields the atomic formula's terms. 
+\\
+\\
+The resulting algorithm is condensed into Algorithm \ref{alg:template-extract-terms}.
 \begin{algorithm}
-\caption{An algorithm to extract the elements of a literal according to a template}\label{alg:template-extract-terms}
+\caption{An algorithm to extract the elements of an atomic formula according to a template.}\label{alg:template-extract-terms}
 \begin{algorithmic}[1]
 \Procedure{ExtractTerms}{$template \, elements\, , \, formula$}
-    \State $formula \, elements \gets \texttt{[]}$
-    \If {$template \, elements.length = 1$}
-        \State $s \gets \texttt{new Surrounding}(s.text \gets formula)$
-        \State $\texttt{append } s \texttt{ into } formula \, elements$
-        \State \Return $formula \, elements$
-    \EndIf
-    \State $ $
-    \For {$\texttt{[}type, surrounding\texttt{]} \texttt{ sequence in } template \, elements$}
-        \If {$surrounding.text \texttt{ is substring of } formula$}
-            \State $s \gets surrounding$
-        \ElsIf {$surrounding.text \texttt{ starts with an end substring of } formula$}
-            \State $text \gets  \texttt{the end substring of } formula$
-            \State $s \gets \texttt{new Surrounding}(s.text \gets text)$
-        \Else
-            \State $\texttt{end loop}$
+    % \State $formula \, elements \gets \texttt{[]}$
+    % \If {$template \, elements.length = 1$}
+    %     \State $s \gets \texttt{new Surrounding}(s.text \gets formula)$
+    %     \State $\texttt{append } s \texttt{ into } formula \, elements$
+    %     \State \Return $formula \, elements$
+    % \EndIf
+    % \State $ $
+    % \For {$\texttt{[}type, surrounding\texttt{]} \texttt{ sequence in } template \, elements$}
+    %     \If {$surrounding.text \texttt{ is substring of } formula$}
+    %         \State $s \gets surrounding$
+    %     \ElsIf {$surrounding.text \texttt{ starts with an end substring of } formula$}
+    %         \State $text \gets  \texttt{the end substring of } formula$
+    %         \State $s \gets \texttt{new Surrounding}(s.text \gets text)$
+    %     \Else
+    %         \State $\texttt{end loop}$
+    %     \EndIf
+    %     \State $ $
+    %     \State $data \gets formula \texttt{ substring before } s.text$
+    %     \If {$data \texttt{ is not empty}$}
+    %         \State $d \gets \texttt{new Data}(d.value \gets data, \, d.type \gets type)$
+    %         \State $\texttt{append } d \texttt{ into } formula \, elements$
+    %     \EndIf
+    %     \State $ $
+    %     \State $\texttt{append } s \texttt{ into } formula \, elements$
+    %     \State $formula \gets formula \texttt{ substring after } s.text$
+    % \EndFor
+    % \State $ $
+    
+    % \State $el \gets elements.last \, element$
+    % \If {$formula \texttt{ is not empty and } el \texttt{ is a Type}$}
+    %     \State $d \gets \texttt{ new Data}(d.value \gets formula, \, d.type \gets el)$
+    %     \State $\texttt{append } d \texttt{ into } formula \, elements$
+    % \EndIf
+    
+    % \State \Return $formula \, elements$
+
+    \State $formula \, elements \gets \texttt{empty list}$
+    \For {$i \gets 1 \texttt{ to } template \, elements.length$}
+        \If {$template \, elements[i] \texttt{ is a } Surrounding$}
+            \State $surrounding \, text \gets \textsc{FindSurrounding}(elements[i].text, \,formula)$
+            \If {$surrounding \, text \texttt{ was not found }$}
+                \State $\texttt{end loop}$
+            \EndIf
+            \State $ $
+            \If {$i > 1$}
+                \State $term \, name \gets formula \texttt{ before } surrounding \, text$
+                \State $t \gets \textsc{TermFromName}(term \, name \, , \, template \, elements[i - 1])$
+                \State $\texttt{append } t \texttt{ into } formula \, elements$
+            \EndIf
+            \State $ $
+            \State $s \gets \texttt{new }Surrounding(s.text \gets surrounding \, text)$
+            \State $\texttt{append } s \texttt{ into } formula \, elements$
+            \State $formula \gets formula \texttt{ after } surrounding \, text$
         \EndIf
-        \State $ $
-        \State $data \gets formula \texttt{ substring before } s.text$
-        \If {$data \texttt{ is not empty}$}
-            \State $d \gets \texttt{new Data}(d.value \gets data, \, d.type \gets type)$
-            \State $\texttt{append } d \texttt{ into } formula \, elements$
-        \EndIf
-        \State $ $
-        \State $\texttt{append } s \texttt{ into } formula \, elements$
-        \State $formula \gets formula \texttt{ substring after } s$
     \EndFor
     \State $ $
-    
-    \State $el \gets elements.last \, element$
-    \If {$formula \texttt{ is not empty and } el \texttt{ is a Type}$}
-        \State $d \gets \texttt{ new Data}(d.value \gets formula, \, d.type \gets el)$
-        \State $\texttt{append } d \texttt{ into } formula \, elements$
+    \If {$formula \texttt{ is not empty and }template \, elements.last \texttt{ is a }Type$}
+        \State $t \gets \textsc{TermFromName}(formula, \, template \, elements.last)$
+        \State $\texttt{append } t \texttt{ into } formula \, elements$
     \EndIf
-    
-    \State \Return $formula \, elements$
+    \State $\texttt{return } formula \, elements$
+    \State $ $
+\EndProcedure
+    %
+\Procedure{FindSurrounding}{$surrounding \, name \, , \, formula$}
+    \If {$surrounding \, name \texttt{ is in } formula$}
+        \State $\texttt{return } surrounding \, name$
+    \Else
+        \For {$i \gets 1 \texttt{ to } formula.length$}
+            \State $end \, of \, formula \gets formula \texttt{ after index } i$
+            \If {$surrounding name \texttt{ ends with } end \, of \, formula$}
+                \State $\texttt{return }end \, of \, formula$
+            \EndIf
+        \EndFor
+    \EndIf
+    \State $\texttt{return fail}$
+    \State $ $
+\EndProcedure
+    %
+\Procedure{TermFromName}{$term \, name \, , \, type$}
+    \If {$term \, name \texttt{ starts with `a' or `an' or `the'}$}
+        \State $v \gets \texttt{new }Variable(v.name \gets term \, name \, ,\, v.type \gets type)$
+        \State $ \texttt{return }v$
+    \Else
+        \State $c \gets \texttt{new }Constant(c.name \gets term \, name \, , \, c.type \gets type)$
+        \State $\texttt{return }c$
+    \EndIf
+\EndProcedure
 \end{algorithmic}
 \end{algorithm}
-First, the trivial case is dealt with where the template list has no types. In this case, the atomic formula has no terms, so the resulting list of elements consists of a the entire atomic formula as a \codeword{Surrounding} object.
 \\
 \\
-In the general case, the algorithm iterates over each type and subsequent surrounding in the template element list. If the surrounding is contained in the atomic formula, then the text before the surrounding is interpreted as data. The data and surrounding are appended to the list of formula's elements. The atomic formula is treated as a queue: the data and surrounding is removed from the atomic formula. This loop continues until a surrounding does not match the atomic formula.
+% First, the trivial case is dealt with where the template list has no types. In this case, the atomic formula has no terms, so the resulting list of elements consists of a the entire atomic formula as a \codeword{Surrounding} object.
+% \\
+% \\
+% In the general case, the algorithm iterates over each type and subsequent surrounding in the template element list. If the surrounding is contained in the atomic formula, then the text before the surrounding is interpreted as a term. The term and surrounding are appended to the list of formula's elements. The atomic formula is treated as a queue: the term and surrounding is removed from the atomic formula. This loop continues until a surrounding does not match the atomic formula.
+% \\
+% \\
+% In iterating over sequences of the form \codeword{[type, surrounding]}, if the template list ends with a type then it will not be visited in the loop. In this case, whatever is left of the atomic formula string is interpreted as data corresponding to the last type.
+Algorithm \ref{alg:template-extract-terms} iterates over each of the template's surrounding elements. For each surrounding element, the corresponding surrounding text is searched for in the atomic formula. If there is a type element immediately before the surrounding element, then a term is extracted from the text before the atomic formula's surrounding text. If the term begins with \codeword{a}, \codeword{an} or \codeword{the}, then the term is a variable, otherwise, it is a constant. The term and the surrounding text are appended to a list of formula elements. The atomic formula that has been visited is discarded.
 \\
 \\
-In iterating over sequences of the form \codeword{[type, surrounding]}, if the template list ends with a type then it will not be visited in the loop. In this case, whatever is left of the atomic formula string is interpreted as data corresponding to the last type.
+If the template element ends with a type, then this type will not be reached by looking for types that precede surrounding elements. This case is handled after the loop, with any remaining atomic formula text interpreted as a final term.
 \\
 \\
-Algorithm \ref{alg:template-extract-terms} can also extract the elements of `incomplete atomic formulas': substrings that an atomic formula begins with. These incomplete atomic formulas occur when the user is writing an atomic formula (in the usual way, by appending text to the end). With the \codeword{else if} clause on line 12, incomplete atomic formulas that end with the beginning substring of a surrounding can also be parsed. This means that elements can be extracted as the user is writing an atomic formula. This is a highly useful property that allows the diagnostic, code completion and semantic highlighting features to occur as the user is writing the document.
+Algorithm \ref{alg:template-extract-terms} can also extract the elements of `incomplete atomic formulas': substrings that an atomic formula begins with. These incomplete atomic formulas occur when the user is writing an atomic formula (in the usual way, by appending text to the end). Through the procedure \codeword{FindSurrounding}, incomplete atomic formulas that end with the beginning substring of a surrounding can also be parsed. This means that elements can be extracted as the user is writing an atomic formula. This is a highly useful property that allows the diagnostic, code completion and semantic highlighting features to occur as the user is writing the document.
 \\
 \\
+To extract all terms that feature in a higher-order atomic formula, Algorithm \ref{alg:template-extract-terms} is used recursively. First, Algorithm \ref{alg:template-extract-terms} is applied to the higher-order atomic formula, yielding each term as a \codeword{Variable} or \codeword{Constant} object. If there are any constants whose text matches a template (in the sense discussed in \ref{section:matching-template-formula}), then the constant is treated as an atomic formula. Algorithm \ref{alg:template-extract-terms} is used to extract the atomic formula's elements using the matching template.
+\\
+\\
+
 % The algorithm extracts the terms of the incomplete literal up to the literal's final element, at which point line 9 causes the algorithm to end.
-The reason why such a long algorithm is needed is to deal with the edge case of what happens if a surrounding also appears as a term. For example, a scenario where a merchant packages and sends items could be described with the template \codeword{*a merchant* ships *an item*}. If we have a merchant who packages and sends ships, then the corresponding literal would be \codeword{the merchant ships ships}. By treating the atomic formula as a queue, removing text that has been visited, this edge case is handled by algorithm.
-% \todo[inline]{Describe how this nuance is handled}
-% \todo[inline]{Talk about how this algorithm works with the edge case of incomplete literals also}
+Algorithm \ref{alg:template-extract-terms} handles the edge case where a surrounding also appears as a term. A simple example of this problem is given by the the template \codeword{*a merchant* ships *an item*}. The atomic formula \codeword{the merchant ships ships}, describing a merchant that packages and transports ships, is an atomic formula that matches the template. By treating the atomic formula as a queue, removing text that has been visited, this edge case is handled by the algorithm.
 
 \subsection{Matching a template to an atomic formula}
 \label{section:matching-template-formula}
@@ -219,13 +291,41 @@ the templates are:
 *a thing* is *a thing*.
 *a person* is a beneficiary of *a will*.
 
-the knowledge base Counter-Example includes:
-jane is a beneficiary of her father's will.
+the knowledge base Beneficiary includes:
+chuan is a beneficiary of disha's will.
 \end{lstlisting}
-In Listing \ref{le:two-templates-match-formula}, the first template to match the literal \codeword{jane is a beneficiary of her father's will} is the template \codeword{*a thing* is *a thing*}. However, this is not the template that \textit{should} match. Using this template to extract the terms of the atomic formula \codeword{jane is a beneficiary of her father's will} will lead to \codeword{a beneficiary of her father's will} being treated as a single term.
+In Listing \ref{le:two-templates-match-formula}, the first template to match the literal \codeword{chuan is a beneficiary of disha's will} is the template \codeword{*a thing* is *a thing*}. However, this is not the template that \textit{should} match. Using this template to extract the terms of the atomic formula \codeword{chuan is a beneficiary of disha's will} will lead to \codeword{a beneficiary of disha's will} being treated as a single term.
 \\ 
 \\
 This motivated a `match score' between a template and an atomic formula: the higher the score, the closer the match. Since the surroundings are used to determine whether a template matches an atomic formula, I reduced the problem to judging the match between the surroundings. In this way, the match score between a template and an atomic formula was determined as the total length of the surroundings extracted in Algorithm \ref{alg:template-extract-terms}. Under this match score, the highest scoring template is used to extract the literal's terms.
+
+
+\section{Semantic Highlighting}
+The semantic highlighting feature highlights the terms of each atomic formula in the document. This is a straightforward application of parsing the document. Each atomic formula is parsed from the document, along with its location, as a \codeword{ContentRange<AtomicFormula>} object. This is done by finding the atomic formula's matching template with the highest match score, which is used to extract the atomic formula's elements. The associated range data of the \codeword{ContentRange<AtomicFormula>} is used to find the location of each term. Each term's location is then highlighted in the document. The semantic highlighting process is recursive: if a higher-order atomic formula contains an atomic formula as an argument, then the atomic formula's terms are also highlighted. Using the location of the higher-order atomic formula to find the location of the terms of its atomic formula argument was a technically difficult process, but involved no higher-level design and does not warrant discussion.
+
+% \subsection{How a Language Server highlights}
+% \todo[inline]{Research this in more detail}
+
+% \subsection{Template Parsing}
+% In parsing the templates, the lines containing templates are found, starting at the header \codeword{the templates are:}, and continuing until either another header or the end of the document is reached. 
+% \\ 
+% \\
+% The \codeword{Template} class then constructs a template from each line. Each substring of the form \codeword{*a _*} or \codeword{*an _*} is taken to be a type name, and the corresponding \codeword{Type} object is put in the corresponding place. All other substrings are wrapped in a \codeword{Surrounding} object.
+% \\
+% \\
+% The central problem here is extracting the elements of an atomic formula according to the template that the atomic formula corresponds to. 
+% Following the principle of Problem Decomposition, the problem of judging how well an atomic formula matches a template is broken down using the above problem:
+% \begin{enumerate}
+%     \item extract the atomic formula elements under the (temporary) assumption that the atomic formula fully matches the template
+%     \item compare the resulting elements against the template's elements to score how well the atomic formula matches the template
+% \end{enumerate}
+
+% \subsection{Extracting the elements of an atomic formula}
+
+% \todo[inline]{Describe how this nuance is handled}
+% \todo[inline]{Talk about how this algorithm works with the edge case of incomplete literals also}
+
+
 % \todo[inline]{Con: this score is not normalised -- how are comparisons then meaningful?}
 %
 %
@@ -234,35 +334,45 @@ This motivated a `match score' between a template and an atomic formula: the hig
 % \subsection{How a language server completes code}
 % \todo[inline]{Research this in more detail}
 \subsection{Completing the remainder of an incomplete atomic formula}
-When the user is writing an atomic formula, various options for the remainder of the atomic formula are suggested. These suggestions are calculated using the templates that the incomplete atomic formula could correspond to. This is not as straightforward as searching for which template match the atomic formula, in the sense of \ref{section:matching-template-formula}, because the atomic formula will be incomplete, and so may not contain each of the template's surroundings. Instead, the templates are ranked by their match score against the atomic formula.
+When the user is writing an atomic formula, various options for the remainder of the atomic formula are suggested. These suggestions are calculated using the templates that the incomplete atomic formula could correspond to. This is not as straightforward as searching for which templates match the atomic formula, in the sense of Section \ref{section:matching-template-formula}, because the atomic formula will be incomplete, and so may not contain all of the template's surroundings. Instead, the templates are ranked by their match score against the atomic formula.
 \\
 \\
-There is already some nuance here. Templates that are ranked highly may be irrelevant: for instance, the template \codeword{*a thing* is *a thing*} shares the surrounding \codeword{is} with the incomplete atomic formula \codeword{a person is a beneficiary of}. These templates cannot be ruled out algorithmically. They will, however, be out-ranked by templates with longer matching surroundings. If the top three templates are taken every time, then the results from these erroneous matches may either appear lower in the list, or may not appear at all.
+There is already some nuance here. Templates that are ranked highly may be irrelevant: for instance, the template \codeword{*a thing* is *a thing*} shares the surrounding \codeword{is} with the incomplete atomic formula \codeword{a person is a beneficiary of}. These erroneous templates cannot be ruled out algorithmically. They will, however, be out-ranked by templates with longer matching surroundings according to the match score algorithm. If the top three templates are taken every time, then the results from these erroneous matches may either appear lower in the list, or may not appear at all.
 % \todo[inline]{Justify why at most three literals are suggested. Research user design.}
 \\ 
 \\
 Each of the three best-matching templates are then used to suggest the rest of the atomic formula. To generate the rest of the atomic formula, the terms that the incomplete atomic formula contains are substituted into each template. Any remaining template arguments are presented to the user as placeholders. When the user selects a template, these placeholders can be instantly navigated to by pressing Tab, allowing the user to quickly fill in the placeholders. This is done through Visual Studio Code's `code snippet' feature, whereby text wrapped in \codeword|${ }| 
 is treated as a placeholder that can be navigated to.
-\todo[inline]{What other language clients support this? Does this affect the universality of the language server?}
+% \todo[inline]{What other language clients support this? Does this affect the universality of the language server?}
 %
 %
 %
 \section{Error diagnosis}
-\subsection{How a language server diagnoses errors}
-\todo[inline]{Research this in more detail}
-
+% \subsection{How a language server diagnoses errors}
+% \todo[inline]{Research this in more detail}
 \subsection{Diagnosing template-less atomic formulas}
-The editor diagnoses errors where an atomic formula does not have a matching template. Having already solved the problem of determining whether a template matches a literal, this at first glance appeared simple.
-However, as I was testing this feature I found that this criterion was too broad. Specifically, incomplete literals (e.g. literals that are being typed) will, in general, not match a template. This means that every literal that is being typed will be diagnosed as incorrect until it is finished. 
+The editor diagnoses errors where an atomic formula does not have a matching template. The approach is similar to the approach used in highlighting the terms of the document. 
 \\
 \\
-Unfortunately, this is impossible to fix in the current version of the Language Server Protocol. When the client requests diagnosis information, all that is supplied is the current state of the document. To determine which literal is being typed by the user, the user's cursor position would also be needed. Since the client supplies the cursor position when requesting auto-completions, one possible workaround could be to store the cursor position when auto-completions are requested and hope that this position stays accurate when it is time to provide diagnostic information. However, I expect that this approach is highly ineffective in practice.
+Each atomic formula that does not match any template is read, along with its range in the document, as a \codeword{ContentRange<TemplatelessAtomicFormula>}. The document is then marked with an error message that spans the range of the templateless atomic formula.
+\\
+\\
+At first glance there appeared to be no problem with this simple solution. However, as I was testing this feature I found that the criterion used was too broad. Specifically, incomplete atomic formulas, atomic formulas that are being typed, will, in general, not match a template. This means that, in most cases, until the user finishes typing an atomic formula, the atomic formula will be marked with an error. 
+\\
+\\
+Unfortunately, this is impossible to fix in the current version of the Language Server Protocol. When the client requests diagnosis information, the only information that is supplied to the language server is the current state of the document. To determine which atomic formula is being typed by the user, the user's cursor position would also be needed. This means that the error diagnosis feature cannot identify which atomic formula is being typed to make it exempt from errors. 
+\\
+\\
+Since the client supplies the cursor position when requesting auto-completions, one possible workaround could be to store the cursor position when auto-completions are requested, in the hope that this position stays accurate when calculating error diagnoses. However, I expect that this approach is highly ineffective in practice.
 
 \subsection{Diagnosing clauses that have misaligned connectives}
-The editor also diagnoses errors where a clause has misaligned connectives. Logical English requires that each literal begins on its own line. The lines starting with the keywords \codeword{and} and \codeword{or}, which have equal precedence, have their indentation compared. If two literals have the same whitespace, but one begins with \codeword{or} while the other begins with \codeword{and}, then the precedence of the connectives is ambiguous. By keeping track of where the clause occurs in the document, the clause is then marked with the error message ``clause has misaligned connectives".
+The editor also diagnoses errors where a clause has misaligned connectives. If a clause contains two lines that have the same indentation, but one begins with \codeword{or} while the other begins with \codeword{and}, then the precedence of the connectives is ambiguous. 
 \\
 \\
-The nuance here is with the term `same whitespace'. There are two common ways to indent lines: tabs and spaces, roughly equally common amoungst programmers \cite{tabs_vs_spaces}. There is no standard, single size of a tab in terms of spaces. For instance, IBM documents the popular `Courier' font to allow a tab size ranging from 0.7 points to 20 points. Thus, if one person indents literals using tabs, and the other using spaces, then it is up to interpretation as to whether the indentation is correct or not.
+The approach is similar to the method used in atomic formulas that match no template. Each clause is read from the document, along with its location, as a \codeword{ContentRange<string>}. The clause is then split into an array of its lines. If two lines begin with the same level of indentation, but different connectives, then the clause's range is marked in the document with the error message ``clause has misaligned connectives".
+\\
+\\
+The nuance here is with the term `same indentation'. There are two common ways to indent lines: tabs, and spaces, which are approximately equally common amongst programmers \cite{tabs_vs_spaces}. However, there is no standard size of a tab in terms of spaces: for instance, IBM documents the popular `Courier' font to allow a tab size ranging from 0.7 points to 20 points. Thus, if one person indents atomic formulas using tabs, and the other using spaces, then it is up to interpretation as to whether the indentation is unambiguous.
 \\
 \\
 The popular programming language Python 3, which has a similar dependence on consistent indentation, attempts to infer a reasonable amount of spaces that a tab must represent based on the document. If it cannot do so, it raises an error \cite{python_tabs_spaces}. Since this is a tangential issue to finding misaligned connectives, I left implementing such a feature for future work.
@@ -270,20 +380,20 @@ The popular programming language Python 3, which has a similar dependence on con
 
 \subsection{Diagnosing type mismatches}
 \subsubsection{Feature Overview}
-The most complex feature to implement was the type checking system. Since this feature is experimental, it was important not to clash with any existing features or hinder the experience of a user who did not want their types to be checked.
+The type checking system was one of the most complex features to implement. Since this feature is experimental, it was important not to clash with any existing features, or hinder the experience of a user who did not wish to be notified of type-checking errors.
 \\
 \\
-The approach I chose in implementing type checking was to have the feature disabled, only being enabled with an explicit \codeword{%type checking: on} 
+The approach I chose in implementing type checking was to have the feature disabled by default, only being enabled with an explicit \codeword{%type checking: on} 
 comment. The type hierarchy was also designed to be as minimal as possible in its presentation, requiring little wording and being easy to read. 
 
 \subsubsection{Initial design: flat type hierarchy}
-When experimenting with implementing this feature, I first implemented type checking before introducing a type hierarchy. In each clause, the literals were extracted, and, using the document's templates, the terms were extracted from each literal. These terms were assigned a type, but there was no notion of sub-type or super-type. If two terms were found that had the same value but different types, a type mismatch error message was generated.
+When experimenting with implementing this feature, I first implemented type checking before introducing a type hierarchy. Types were assigned to each term of an atomic formula according to the template's argument name. If two terms were found that had the same name but different types, a type mismatch error message was generated.
 \\ 
 \\
-This design was a lot more inconvenient to use than I expected: many more error messages were generated than I anticipated. This was mainly because of the default templates. Since the default templates are very broad, they use short, generic placeholder type names, such as \codeword{an A}, \codeword{a B}, \codeword{a C}, or \codeword{a thing}. 
+This design was a lot more inconvenient to use than I expected, since many more error messages were generated than anticipated. This was mainly because of the default templates. Since the default templates are very broad, they use short, generic placeholder type names, such as \codeword{an A}, \codeword{a B}, \codeword{a C}, or \codeword{a thing}. 
 \\
 \\
-This caused problems for two reasons. Firstly, if a clause featured an atomic formula that conformed to a built-in template, then the type names clashed with the more specific type names used in other atomic formulas. This problem could only be resolved through a type hierarchy by ensuring that the types used in the default templates would be super-types of all other types.
+This caused problems for two reasons. Firstly, if a clause featured an atomic formula that conformed to a built-in template, then the type names would differ from the more specific type names used in other atomic formulas. This problem could only be resolved through a type hierarchy by ensuring that the types used in the default templates would be super-types of all other types.
 \\
 \\
 However, there was a second issue, in which the type names often clashed amongst themselves. Take, for example, a Logical English program in which the empty list is reversed.
@@ -295,49 +405,110 @@ However, there was a second issue, in which the type names often clashed amongst
     the knowledge base Type-Clashing includes:
     [] is the reverse of []. %type mismatch error
 \end{lstlisting}
-(In reality, the template above would not need to be stated, since it is included by default.) In Listing \ref{le:default-template-types}, a type mismatch error is generated. This is because \codeword{[]} is both of type \codeword{an A} and \codeword{a B}.
-\todo[inline]{Cite the default templates, or at least, talk about them in the LE specification.}
-This required the template argument names to be renamed in light of the fact that the names were now used as types. With the template in Listing \ref{le:default-template-types}, for instance, being replaced with 
+(In reality, the template in Listing \ref{le:default-template-types} would not need to be stated, since it is included by default.) The type-checking system would generate a type mismatch error for Listing \ref{le:default-template-types} since \codeword{[]} is both of type \codeword{an A} and \codeword{a B}.
+% \todo[inline]{Cite the default templates, or at least, talk about them in the LE specification.}
+This required the template argument names to be renamed in light of the fact that the names were now used as types. With the template in Listing \ref{le:default-template-types}, for instance, being rewritten as
 \begin{lstlisting}[language={LE}]
     *a list* is the reverse of *a list*.
 \end{lstlisting}
-there would be no type clashing error. Renaming the types would not cause any errors with any older Logical English code, since the argument names of templates were not used by the Logical English engine.
-\todo[inline]{Are the template argument names used at all by the engine?}
+there would be no type clashing error. Renaming the types would not cause any errors with any older Logical English code, since I was careful not to rename argument names such as \codeword{a date} that were used the Logical English engine.
+% \todo[inline]{Are the template argument names used at all by the engine?}
 
 \subsubsection{Diagnosing with a type hierarchy}
-The type hierarchy was implemented as a node-based tree structure. Each node, represented by the class \codeword{Type}, stored the name of the type that it represented, along with a list of references to each immediate subtype. Due to time constraints, the type hierarchy was given one top type, named \codeword{a thing}, as opposed to the two separate top types prescribed in \ref{section:type-hierarchy}.
+\label{section:diagnosing-with-type-hierarchy}
+% The type hierarchy was implemented as a node-based tree structure. Each node, represented by the class \codeword{Type}, stored the name of the type that it represented, along with a list of references to each immediate subtype. Due to time constraints, the type hierarchy was given one top type, named \codeword{a thing}, as opposed to the two separate top types prescribed in \ref{section:type-hierarchy}.
 \\
 \\
-One point of consideration was the format in which the user would be required to write the type hierarchy. There are various ways of representing a type hierarchy in text form: the one that balanced both ease of readability and ease of writing was the indented list \cite{indented_list_to_tree}, where each parent is followed by an indented list of its children. (For a further description of how to format such a list, see the User Guide.) It is a standard algorithmic problem to convert an indented list to a tree, to which the solution is well-known. 
+One point of consideration was the format in which the user would be required to write the type hierarchy. There are various ways of representing a hierarchical tree structure in text form: the one that balanced both ease of readability and ease of writing was the indented list \cite{indented_list_to_tree}, where each parent is followed by an indented list of its children. (For a further description of how to format such a list, see the User Guide.) It is a standard algorithmic problem to convert an indented list to a tree, to which the solution is well-known \cite{indented_list_to_tree}. 
 \\
 \\
-Once the type hierarchy was implemented, I could build on the type identification system by using the type hierarchy to check whether two types were compatible. Two types are compatible if they are equal, or if one is a child of the other in the type hierarchy. This reduced checking for type compatibility to a standard tree search problem, to which the solution is again well-known.
+Once the type hierarchy was implemented, I could build on the type identification system by using the type hierarchy to check whether two types were compatible. According to the type hierarchy specification in Chapter \ref{section:type-system-requirements}, two types are compatible if they are equal, or if one is a child of the other in the type hierarchy. This reduced checking for type compatibility to a standard tree search problem, to which the solution is again well-known \cite{depth_first_search}.
 %
 %
 %
 \section{Quick Fixes}
-\subsection{How a language server provides quick fixes}
-\todo[inline]{Research this in more detail}
-
-\subsection{Generating a new template that matches given atomic formulas}
-\subsubsection{Template Generation using Least General Geneneralisation}
-When a document contains atomic formulas that have no matching template, the editor seeks to generate a new template that matches them all. This is done in multiple iterations, with each iteration generalising the template.
+% \subsection{How a language server provides quick fixes}
+% \todo[inline]{Research this in more detail}
+\subsection{Generating a new template to match atomic formulas}
+\subsubsection{Template Generation using Least General Generalisation}
+When a document contains atomic formulas that have no matching template, the editor seeks to generate a new template that matches them all. This is done in multiple iterations, with each iteration generalising the template further.
 \\
 \\
-The first candidate template is generated according to the Least General Generalisation algorithm. This is an algorithm written by Gordon Plotkin \cite[p~.155]{lgg_plotkin} that gives, from two or more `words' (corresponding to `atomic formulas'), a single generalisation which has variables wherever the two words have differing terms. This is a generalisation in the sense that both `words' can be obtained by substituting the necessary terms in place of the generalisation's variables. The generalisation is `least general' in the sense that it has no more variables than necessary to be a generalisation.
+The first candidate template is generated according to the Least General Generalisation algorithm. This is based on algorithm written by Gordon Plotkin \cite[p~.155]{lgg_plotkin} that gives, from two or more atomic formulas \footnote{Gordon Plotkin's algorithm uses the term `word', which is a string of symbols that contains no variables. Thus atomic formulas can be viewed as `words'. Templates, which conform to an atomic formula but contain variables, can be viewed as their generalisation.}, a single generalisation which has variables wherever the two atomic formulas have differing terms. The result is a generalisation in the sense that both atomic formulas can be obtained by substituting the necessary terms in place of the generalisation's variables. The generalisation is `least general' in the sense that it has no more variables than necessary to be a generalisation.
 \\
 \\
-The algorithm followed by the editor is an adaptation of Plotkin's original algorithm. Each literal is split into a list of space-separated words. It is assumed that there is a common template which matches all the literals. 
+The algorithm followed by the editor is Algorithm \ref{alg:lgg}. This is an adaptation of Gordon Plotkin's original algorithm. 
+\begin{algorithm}
+\caption{An algorithm to obtain the least general template that matches a list of formula strings.}\label{alg:lgg}
+\begin{algorithmic}[1]
+\Procedure{LeastGeneralGeneralisation}{$formulas$}
+    \State $first \, formula \, words \gets formulas.first \, string \texttt{ split by whitespace}$
+    % \State $other \, formulas \gets formulas.tail$
+    \State $template \, elements \gets \texttt{[]}$
+    \State $passed \, term \gets \texttt{false}$
+    \State $buffer \gets \texttt{empty string buffer}$
+    \State $visited \, term \gets \texttt{false}$
+    \State $ $
+    %
+    \For {$word \texttt{ in } first \, formula \, words$}
+        \If {$f \texttt{ includes } word \texttt{ for every } f \texttt{ in } formulas$}
+            \State $\texttt{append } word \texttt{ into } buffer$
+            \If {$visited \, term$}
+                \State $\texttt{append new Type into } template \, elements$
+                \State $visited \, term \gets \texttt{false}$
+            \EndIf
+            \State $ $
+            \For {$f \texttt{ in } formulas$}
+                \State $\texttt{remove first occurrence of } word \texttt{ from } f$
+            \EndFor
+        \State $ $
+        \Else 
+            \State $visited \, term \gets \texttt{true}$
+            \If {$buffer \texttt{ is not empty}$}
+                \State $s \gets \texttt{new Surrounding}(s.text \gets buffer)$
+                \State $\texttt{append } s \texttt{ into } template \, elements$
+                \State $\texttt{clear } buffer$
+            \EndIf
+        \EndIf
+    \EndFor
+    % \State $ $
+    %     \If {$surrounding \, buffer \texttt{ is not empty}$}
+    %     \State $s \gets \texttt{new Surrounding}(s.text \gets surrounding \, buffer)$
+    %     \State $\texttt{append } s \texttt{ into } template \, elements$
+    % \EndIf
+    % \State $ $
+    % \If {$passed \, term$}
+    %     \State $t \gets \texttt{new Type}$
+    %     \State $\texttt{append } t \texttt{ into } template \, elements$
+    % \EndIf
+    \State $ $
+    \State $T \gets \texttt{new Template(}T.elements \gets template \, elements)$
+    \For {$f \texttt{ in } formulas$}
+        \If {$f \texttt{ does not match }T$}
+            \State \Return $\texttt{failed}$
+        \EndIf
+    \EndFor
+    \State \Return $T$
+\end{algorithmic}
+\end{algorithm}
+The algorithm iterates over each whitespace-separated word in an arbitrarily-chosen (here, first) formula. If the current word features in every formula, then the current word must be part of a surrounding. The word is appended to a buffer that collects the current surrounding. Since a surrounding has been reached, a term may have been passed by. If so, a type with an arbitrary type name is added to the template elements. Finally, the current word's first occurrence is removed from every formula to prevent double-counting. 
 \\
 \\
-Initially, the common surroundings are identified as the intersection of all the space-separated words. On testing, this criteria failed to account for when the same surrounding occurs more than once in each atomic formula. Instead, the surroundings are calculated by stepping through the words of an arbitrarily chosen atomic formula. Each word is checked to see whether it is contained in all other atomic formulas: if so, then it is added to the list of surroundings, and its first occurance is removed from the other lists.
-\\ 
+If the current word does not feature in every formula, then the current word is part of a term. This means that we have reached the end of the surrounding stored in the buffer. The buffer's contents is appended to the template elements as a \codeword{Surrounding} object, then cleared.
 \\
-Having found all of the surroundings, the variables are found by taking the first atomic formula and removing the surroundings. If this template matches all the other atomic formulas, then it is returned. Otherwise, the atomic formulas are assumed to have been incompatible.
+\\
+Once each word has been iterated over, a new template is created from the template elements. The formulas passed into the algorithm may not have conformed to a common template, in which case not every formula will match the template generated. If this is so, the algorithm fails. Otherwise, the template is returned.
+\\
+\\
+Since Algorithm \ref{alg:lgg} takes care to prevent double-counting, the algorithm does not fail in the edge case where a term or surrounding occur multiple times in each formula. Algorithm \ref{alg:lgg} was therefore a useful starting point in generating a common template. This is discussed further in the next section.
 
 \subsubsection{Template Refinement from the re-use of terms}
-It was often the case that the least general generalisation was not enough to generate an accurate template. Either there were too few atomic formulas, or the atomic formulas did not vary in every term. In trying to fix this problem, I noticed that I was not exploiting the context(i.e. the clause) in which the literal was written. If a literal borrows a term from another literal, then we know about that term, and can generalise it into a variable.
+\label{section:template-refinement}
+It was often the case that the Algorithm \ref{alg:lgg} alone was not enough to generate an accurate template. This was the case when the atomic formulas did not vary in each of their arguments. In trying to fix this problem, I noticed that Algorithm \ref{alg:lgg} was not exploiting the clause in which the atomic formulas were written. The surrounding clause of an atomic formula may contain crucial information: if a term of a template-less atomic formula appears in another atomic formula that conforms to a template, then the term and its type are known. Identified in this way, the term can be generalised into an argument.
 \\
 \\
-This was done by giving the \codeword{Template} class a method to generate a more general template by generalising a given term into a variable. Applying this method successively to all the surrounding terms that feature in each template-less literal gave much more accurate templates. This also allowed a single literal to be generalised into a template -- a feature that is impossible with least general generalisation. This also told us the type to place inside the template, since the type of each term is known.
+To incorporate this feature, the \codeword{Template} class was given a method that finds occurrences of a given term in its surroundings, replacing those occurrences with a new variable. By starting with the template obtained by Algorithm \ref{alg:lgg} and successively applying the method to each known term of the surrounding clause, a much more accurate template was obtained.
+\\
+\\
+This procedure had two additional improvements over simply using Algorithm \ref{alg:lgg}. A single atomic formula could now be generalised into a template -- a feature that is impossible with least general generalisation. Further, whenever variables were added from existing terms, the term's corresponding type could be used, giving a more accurate variable name. 
 \end{document}

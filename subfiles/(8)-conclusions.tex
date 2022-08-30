@@ -1,8 +1,64 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
-\chapter{Conclusions and Further Work}
-\section{Conclusion}
-\section{Challenge and Reflection}
+\chapter{Conclusion} 
+\section{Challenges and Reflection}
+Although the end result was successful, each step in developing the editor came with significant challenges. As usual when undertaking any significant task, these were challenges that were not anticipated. I expected work on the project to be easier initially, as I was developing simpler features, and slowly become harder as the features became more complex. In reality, the project's difficulty was the opposite of my expectations: the initial two phases were significantly harder than all subsequent work, with the work getting easier as I became more familiar with developing the language server.
+\\
+\\
+The initial research phase was surprisingly difficult. Logical Programming was a completely unfamiliar field of Computer Science prior to this project, with my only exposure being tangential references to Logical Programming in university courses on Logic. Although Logical English is an extremely simple programming language (compared to, for instance, TypeScript, which was used to develop the editor), the lack of documentation on Logical English, coupled with my unfamiliarity with its Logical Orogramming context, made it a difficult task to gain the thorough understanding needed to develop an editor for the language. I would like to thank my supervisors for their support through this, who were very eager and helpful in helping me learn the language that they had created. 
+\\
+\\
+Surprisingly, the most difficult period of the project was in creating an language server with simple examples of each feature. This was due to the lack of documentation. Although the Language Server Protocol itself is heavily described by Microsoft, there is no documentation on how to create a language server that implements more than the most basic features of this protocol. Specifically, the \codeword{vscode-languageserver} library on which the language server is built gives little guidance on anything other than supplying simple diagnostic or auto-completion messages, only through hints in comments found in the library. In the end, the most helpful instructions were found in the source code of other language servers, which have been credited wherever my own source code built on them. These language servers were hard to find; many language servers connected to Visual Studio Code use a language server built in another language, often Java or C++, that do not use Microsoft's language server libraries. Of the language servers that do, many use the now deprecated \codeword{vscode} library as opposed to \codeword{vscode-languageserver}.
+\\
+\\
+Once basic examples of each of the features had been built, developing the language server became more straightforward. Although plenty of errors were made along the way, finding their underlying causes became significantly easier. It is a lot easier to fix errors in a language server that interacts with the editor, giving a meaningful error message when something goes wrong, rather than a language server that does not run or fails to connect. This principle applied throughout working on the language server's features. Although implementing the features at a higher level came with their challenges, the most frustrating moments were in trying to fix the many regular expressions that the language server depends on, which give no meaningful response when they do not work as intended.
+\\
+\\
+A major mistake that I carried forward throughout most of the project was in underestimating the importance of frequent, thorough testing. Throughout most of my time working on the editor, tests were rushed and cursory. The only testing I would perform was to open one or two Logical English documents in the editor and check the features manually with a few brief examples. Since testing of this sort is both inconsistent and inconclusive, various errors and edge cases went unnoticed until the evaluation phase of development, caught by unit and end-to-end testing. Time and effort would have been saved if automated tests were regularly performed throughout the editor's development.
+
 \section{Further Work}
-We haven't finished yet.
+The editor I have developed is, in many ways, an exploration. This is the first purpose-built code editor for Logical English and, as such, various features are experimental. It was unclear how feasible or accurate template auto-generation would be, and the type system is a new contribution to the language, implemented through the type checking feature. This leaves the Logical English editor as complete with respect to its requirements, but with many avenues open for further development.
+
+\subsection{Future work for parsing the document}
+Due to time constraints, the editor parses complex terms, such as lists and dates, as atomic terms with no nested structure. This means that a clear avenue for further work is to build on the recursive parsing of atomic formulas to parse the recursive structure of other terms. To achieve this, the tree structure that the \codeword{AtomicFormula} class uses to contain other atomic formulas as terms may be adapted to a general Abstract Syntax Tree. An Abstract Syntax Tree will be useful in not only combine the parsing of atomic formulas with that of lists, but also in allowing Logical English to be extended to include user-defined functions with possibly nested applications.
+
+\subsection{Future work for the type system}
+The type system was designed to be powerful enough to be useful in its current form whilst being minimal enough to be easily extended. Future work would be to incorporate the type system in its current version into the Logical English engine, so that type mismatch errors are found during, or perhaps before, runtime. 
+\\
+\\
+The type hierarchy could also be extended to better fit Logical English's domain of discourse. Atomic formulas are, in some ways, distinct from other compound terms in Logical English. For instance, equality is described by templates such as 
+\begin{lstlisting}[language=LE]
+    *a thing* is *a thing*
+\end{lstlisting}
+which, since all terms have their type as subtypes of the type \codeword{a thing}, applies to atomic formulas as well as other terms. However, users may expect equality for atomic formulas to differ from equality for other terms. Two constants are considered equal by comparing the constants names, however, users may consider atomic formulas with differing names as `equal' if they are logically equivalent. This could motivate disconnecting the type hierarchy of atomic formulas from the type hierarchy of other terms, so that errors are caught when atomic formulas are used when any other term is expected.
+
+\subsection{Future work for template auto-generation}
+One area of development for template generation is to support generalising terms that are assigned different types. Currently, in creating a template from an atomic formula, the process of template refinement (described in Section \ref{section:template-refinement}) replaces terms that reappear in other atomic formulas with their types. There is an issue to this straightforward approach, evidenced by Listing \ref{le:template-from-atomic-formula-2-terms}
+\newpage
+\begin{lstlisting}[language={LE}, label={le:template-from-atomic-formula-2-terms}, caption={An extract of a Logical English program in which an atomic formula without a template appears twice, with arguments of different types.}]
+the type hierarchy is:
+a person
+    a candidate
+    a boss
+
+the templates are:
+*a candidtate* accepts the job offered by *a boss*.
+
+the knowledge base Jobs includes:
+fred bloggs accepts the job offered by a boss if
+    fred bloggs likes football
+    and the boss likes football.
+\end{lstlisting}
+From Listing \ref{le:template-from-atomic-formula-2-terms}, the template refinement process would create the template \codeword{*an employee* likes football} when generalising the atomic formula on line 11, and the template \codeword{*a boss* likes football} when generalising the atomic formula on line 13. However, neither template matches both the atomic formulas. To arrive at the correct template, \codeword{*a person* likes football}, the template refinement process should check if, when replacing a term with its type, using a type higher in the type hierarchy would result in a template that matches more atomic formulas. More specifically, if a term to be generalised has type $A$, then the type $B$ is a candidate type to generalise the term when
+\begin{enumerate}
+    \item $A$ is equal to $B$, or $A$ is a subtype of $B$
+    \item the template where $B$ is used maximises the amount of matching atomic formulas that do not match any other template
+    \item $B$ is a lowest type in the type hierarchy for which (1.) and (2.) hold
+\end{enumerate}
+
+\subsection{Acquiring more feedback}
+\todo[inline]{All features are guided by feedback. Get more than 7 responses.}
+
+\section{Concluding Remarks}
+The language client, syntax highlighter and language server were successfully built and connected to a Visual Studio Code editor. The three components implemented the required features of syntax highlighting, code completion and error detection, along with the optional type checking feature. For the latter feature, a type hierarchy was proposed for Logical English, which the editor successfully implements. When tested by users new to Logical English each feature is rated highly, with average scores no lower than 8 out of 10.
 \end{document}
