@@ -21,6 +21,7 @@
 \usepackage{textpos}
 \usepackage[square, numbers]{natbib} % for bibliography
 \usepackage{tabularx,longtable,multirow,subfigure,caption}%hangcaption
+\usepackage{subfig}
 \usepackage{fncylab} %formatting of labels
 \usepackage{fancyhdr} % page layout
 \usepackage{url} % URLs
@@ -33,7 +34,7 @@
 \usepackage{backref} % needed for citations
 \usepackage{array}
 \usepackage{algorithmicx}
-\usepackage{algpseudocode}
+\usepackage[noend]{algpseudocode}
 \usepackage{algorithm}
 \usepackage{subfiles}
 \usepackage{latexsym}
@@ -57,7 +58,8 @@
 % \titleformat{\chapter}[display]
 %   {\normalfont\bfseries}{}{0pt}{\Large}
 \titleformat{\chapter}[hang] 
-    {\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter:}{1em}{} 
+    % {\normalfont\huge\bfseries}{\chaptertitlename\ \thechapter:}{1em}{} 
+    {\normalfont\huge\bfseries}{\thechapter. {\slshape}}{1em}{} 
 
 \hypersetup{pdftitle={},
   pdfsubject={}, 
@@ -93,7 +95,7 @@
 % \texttt{\textcolor{darkgray}{#1}}%
 % }
 
-\newcommand{\codeword}{\lstinline[language=LE]}
+\newcommand{\codeword}{\lstinline}
 
 
 %%% Default settings (page layout)
@@ -101,7 +103,12 @@
 
 \setlength{\headheight}{14.5pt}
 \pagestyle{fancy}
-\renewcommand{\chaptermark}[1]{\markboth{\chaptername\ \thechapter.\ #1}{}} 
+\fancypagestyle{MyStyle}{%
+    \fancyhead{} %Clean headers
+    \fancyhead[RO]{\leftmark}
+    \fancyhead[LE]{\leftmark}
+    \renewcommand{\chaptermark}[1]{\markboth{\thechapter. {\slshape{##1}}}{}}
+}
 
 \fancyfoot[ER,OL]{\sffamily\textbf{\thepage}}%Page no. in the left on odd pages and on right on even pages
 \fancyfoot[OC,EC]{\sffamily }
@@ -112,23 +119,23 @@
 
 %--- chapter heading
 
-\def\@makechapterhead#1{%
-  \vspace*{10\p@}%
-  {\parindent \z@ \raggedright \sffamily
-    \interlinepenalty\@M
-    \Huge\bfseries \thechapter \space\space #1\par\nobreak
-    \vskip 30\p@
-  }}
+% \def\@makechapterhead#1{%
+%   \vspace*{10\p@}%
+%   {\parindent \z@ \raggedright \sffamily
+%     \interlinepenalty\@M
+%     \Huge\bfseries \thechapter \space\space #1\par\nobreak
+%     \vskip 30\p@
+%   }}
 
 %---chapter heading for \chapter*  
-\def\@makeschapterhead#1{%
-  \vspace*{10\p@}%
-  {\parindent \z@ \raggedright
-    \sffamily
-    \interlinepenalty\@M
-    \Huge \bfseries  #1\par\nobreak
-    \vskip 30\p@
-  }}
+% \def\@makeschapterhead#1{%
+%   \vspace*{10\p@}%
+%   {\parindent \z@ \raggedright
+%     \sffamily
+%     \interlinepenalty\@M
+%     \Huge \bfseries  #1\par\nobreak
+%     \vskip 30\p@
+%   }}
 
 \allowdisplaybreaks
 
@@ -141,7 +148,7 @@
 \lstset{ %
 backgroundcolor=\color{white}, % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
 basicstyle=\footnotesize, % the size of the fonts that are used for the code
-breakatwhitespace=false, % sets if automatic breaks should only happen at whitespace
+breakatwhitespace=true, % sets if automatic breaks should only happen at whitespace
 breaklines=true, % sets automatic line breaking
 captionpos=b, % sets the caption-position to bottom
 commentstyle=\color{mygreen}, % comment style
@@ -202,8 +209,7 @@ title=\lstname % show the filename of files included with \lstinputlisting; also
 }
  
 \lstset{
-  numbers=none,
-  language=TypeScript,
+  language=LE,
   extendedchars=true,
   basicstyle=\footnotesize\ttfamily,
   showstringspaces=false,

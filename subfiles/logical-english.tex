@@ -4,7 +4,8 @@
 \chapter{Logical English}
 \label{chapter:le}
 % This chapter introduces the features of Logical English, then relates them to the functional requirements of the editor.
-\todo[inline]{Use screenshots of the editor.}
+% \todo[inline]{Use screenshots of the editor.}
+% \todo[inline]{Rewrite examples to use beverages rather than `cafe X'.}
 % \section{Logical English}
 Logical English is a logical and declarative programming language. Logical English is an example of a controlled natural language; it is written as a structured document, with a syntax that has few symbols and which resembles natural English. \cite{logical_english}.
 
@@ -15,32 +16,33 @@ Logical English allows knowledge bases to be represented as logical rules. These
 A fundamental concept in Logical English is the atomic formula. An atomic formula is a statement which cannot be broken down into any smaller statements. Examples in Logical English include:
 \begin{lstlisting}[language={LE},caption={An example of three atomic formulas in Logical English.},label={le:atomic formulas}]
     fred bloggs eats at cafe bleu.
-    emily smith eats at cafe jaune.
+    disha khan eats at cafe jaune.
     cafe bleu sells sandwiches.
 \end{lstlisting}
 % As in listing \ref{le:atomic formulas}, atomic formulas may include constants, such as \codeword{fred bloggs} and \codeword{cafe bleu}, or variables, such as \codeword{a cafe}. These will be discussed further.
 
 \subsection{Clauses}
-Clauses are rules, starting with an atomic formula, that determine when the atomic formula is logically implied. Examples include:
+\label{section:le-clauses-one}
+Clauses are rules that determine when an atomic formula can be logically derived. Examples include:
 \newpage
 \begin{lstlisting}[language={LE},label={le:clauses},caption={Examples of clauses in Logical English.}]
     fred bloggs eats at cafe bleu if
         fred bloggs feels hungry.
 
-    emily smith eats at a cafe if
-        emily smith feels hungry
+    disha khan eats at a cafe if
+        disha khan feels hungry
         and the cafe sells sandwiches.
 
-    emily smith feels hungry.
+    disha khan feels hungry.
 \end{lstlisting}
-Clauses begin with a `head', which is the atomic formula that is logically implied by the rest of the clause. If there are no other atomic formulas, then the head is taken to be logically implied in all cases. Otherwise, the head is followed by the keyword \codeword{if}, then a number of `body' atomic formulas that logically imply the head. These body atomic formulas are separated by the connectives \codeword{and}, \codeword{or}, or \codeword{it is not the case that}.
+Clauses begin with a `conclusion', which is the atomic formula that is logically implied by the rest of the clause. If there are no other atomic formulas, then the conclusion is logically implied in all cases. Otherwise, the conclusion is followed by the keyword \codeword{if}, then a number of atomic formulas that logically imply the conclusion. These atomic formulas are separated by the connectives \codeword{and}, \codeword{or}, or \codeword{it is not the case that}.
 \\
 \\
-A variable is introduced for the first time in a clause by beginning its name with \codeword{a} or \codeword{an}. In Listing \ref{le:clauses}, \codeword{a cafe} is a variable. Subsequent uses of the same variable start with \codeword{the}. This means that in Listing \ref{le:clauses} if we were later given (or could later derive) that
+A variable is introduced for the first time in a clause by beginning its name with \codeword{a} or \codeword{an}. In Listing \ref{le:clauses}, \codeword{a cafe} is a variable. Subsequent uses of the same variable start with \codeword{the}. This means that in Listing \ref{le:clauses}, if we were later given (or could later derive) that
 \begin{lstlisting}[language={LE}]
     cafe jaune sells sandwiches
 \end{lstlisting}
-then the atomic formula \codeword{emily smith eats at cafe jaune} would be logically implied by the second clause in the listing. 
+then the conclusion \codeword{disha khan eats at cafe jaune} would be logically implied through the second clause. 
 
 \subsection{Templates}
 The words in an atomic formula can have one of two functions. A word could either be part of a \textit{term} of the atomic formula, which is an object that the atomic formula describes. Otherwise, a word is part of the atomic formula's \textit{predicate}: the name of the assertion that is applied to the terms. Viewed this way, terms are also known as \textit{predicate arguments}.
@@ -59,11 +61,8 @@ is a template for the atomic formula
 \end{lstlisting}
 This template allows the terms to be identified as \codeword{cafe jaune}, \codeword{crepes}, \codeword{breakfast} and \codeword{noon}. In Logical English, every atomic formula must have a corresponding a template.
 
-\subsection{Meta Atomic Formulas}
-A meta atomic formula contains another atomic formula as a term. For instance, meta atomic formulas could be used to describe events, obligations or actions. 
-\\
-\\
-A meta atomic formula must have the keyword \codeword{that} preface the atomic formula that it describes. An example is given in Listing \ref{le:meta}.
+\subsection{Higher-order Atomic Formulas}
+A higher-order atomic formula contains another atomic formula as a term. A higher-order atomic formulas can be written with the keyword \codeword{that} preceding the atomic formula that it describes. An example is given in Listing \ref{le:meta}.
 \begin{lstlisting}[language=LE,label={le:meta},caption={An example of an atomic formula featuring in a meta atomic formula.}]
 the templates are:
 *a bank* receives money.
@@ -74,9 +73,9 @@ the knowledge base Payments includes:
 LE bank receives money if
     there is a requirement that bob pays money to LE bank.
 \end{lstlisting}
-In Listing \ref{le:meta}, the atomic formula \codeword{bob pays money to LE bank} features in the meta atomic formula \codeword{there is a requirement that _}.
+In Listing \ref{le:meta}, the atomic formula \codeword{bob pays money to LE bank} features in the higher-order atomic formula \codeword{there is a requirement that __}.
 
-\section{The structure of a Logical English program}
+\section{Program Structure}
 A complete Logical English program features atomic formulas, clauses and templates. An example is provided in Listing \ref{le:short}.
 \newpage
 \begin{lstlisting}[language={LE},caption={A short Logical English program.},label={le:short}]
@@ -88,7 +87,7 @@ the knowledge base Travelling includes:
 fred bloggs travels to a holiday resort if 
     the holiday resort has swimming pools.
 
-emily smith travels to a museum if
+disha khan travels to a museum if
     the museum has statues 
     and the museum has ancient coins.
 
@@ -101,16 +100,19 @@ which person travels to which place.
 \end{lstlisting}
 The rest of this section expands on the features shown in Listing \ref{le:short}, as well as other features of Logical English.
 \subsection{Templates}
-The program starts with the template section, with header \codeword{the templates are:}, in which the templates are defined. 
+The program starts with the template section, with the section title \codeword{the templates are:}, in which the templates are defined. 
+\\
+\\
+Each Logical English  document is also implicitly given several general-purpose templates: templates such as \codeword{*a thing* = *a thing*}, or \codeword{*a date* is immediately before *a date*}. A full list of these templates can be found in the Logical English handbook \cite{le_handbook}.
 
 \subsection{Clauses}
 \label{section:knowledge-base}
 \subsubsection{The Knowledge Base}
-The program's clauses are given in the knowledge base. The knowledge base can either start with the header \codeword{the knowledge base includes:}, or it can be given a name, in which case it starts with the header \codeword{the knowledge base <name> includes:}. 
+The program's clauses are given in the knowledge base. The knowledge base starts with the section title \codeword{the knowledge base <name> includes:}, where \codeword{<name>} is a name that can optionally be given.
+% \todo[inline]{What does this name do?}
 
 \subsubsection{Connectives in Clauses}
-The body atomic formulas in a clause are separated by logical connectives. The precedence of these connectives is clarified by indentation; connectives that have higher precedence are indented further. For example, \texttt{(A and B) or C} is written
-\newpage
+The atomic formulas in a clause are separated by logical connectives. The precedence of these connectives is determined by indentation; connectives that have higher precedence are indented further. For example, what one might write in English as \texttt{(A and B) or C} is written
 \begin{lstlisting}[language={LE}]
     A
         and B
@@ -128,16 +130,25 @@ There is no default preference over \codeword{and} and \codeword{or}: it is an a
     and B
     or C.
 \end{lstlisting}
-\\
-\\
-% Like in \ref{le:short}, a variable is introduced for the first time by beginning its name with \codeword{a} or \codeword{an}.  Subsequent uses of the variable must then start with \codeword{the}. Variables quantify over all the terms that are used in the knowledge base.
+
+\subsubsection{Categories of terms}
+\label{section:categories-of-terms}
+Logical English supports three categories of terms:
+\begin{enumerate}
+    \item \textbf{Constants}. These terms represent a single value and cannot be broken down into any constituent terms. Examples include names such as \codeword{mary jane} or \codeword{LE Bank}, as well as numbers.
+    \item \textbf{Complex terms}. These are terms that are built from other terms. Examples include lists, such as \codeword{[one, two, three]}, that are built from any other terms, as well as dates, such as \codeword{01-01-1970}, which are built from numbers. An atomic formula can also be a complex term, since atomic formulas can include other terms, and can feature as arguments of higher-order atomic formulas.
+    \item \textbf{Atomic Formulas}. Atomic formulas are terms, since they can feature as arguments of higher-order atomic formulas. Similar to complex terms, atomic formulas can contain other terms. However, unlike complex terms, atomic formulas have a logical meaning: clauses are made up of atomic terms.
+    \item \textbf{Variables}. Variables are terms that range over other terms. The syntax of variables is described in Section \ref{section:le-clauses-one}. 
+\end{enumerate}
+% Later on in this report I will refer to terms that are not atomic formulas as \textit{data}. 
+% \todo[inline]{These names are based on the terminology of Prolog, \url{https://www.let.rug.nl/bos/lpn//lpnpage.php?pagetype=html&pageid=lpn-htmlse2}}
 
 \subsection{Scenarios}
-Various scenarios can optionally be given. Scenarios contain clauses with no body atomic formulas that are used when running a query. Scenarios must have a name, and must start with 
+Various scenarios can optionally be given. Scenarios contain clauses that are just conclusions, and can be used when running a query. Scenarios must have a name, and begin with the section title
 \codeword{scenario <name> is:}. 
 
 \subsection{Queries}
-The final section of a Logical English program are the queries. A query consists of one or more questions that the Logical English engine seeks to answer. These questions ask for which atomic formulas can be deduced by the Logical English engine. The terms that the query is to look for are written as placeholders that start with \codeword{which}. 
+The final section of a Logical English program contains the queries. A query consists of one or more questions that the Logical English engine seeks to answer. These questions ask for which atomic formulas can be deduced by the Logical English engine. The terms that the query is to look for are written as placeholders that start with \codeword{which}. 
 \\
 \\
 For example, running query one with scenario A from \ref{le:full}

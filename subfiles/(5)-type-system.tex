@@ -1,20 +1,10 @@
 \documentclass[../main.tex]{subfiles}
 \begin{document}
 \chapter{The Type System}
-\todo[inline]{Add sources.}
-\section{Requirements}
+% \todo[inline]{Add sources.}
+\section{Overview}
 \label{section:type-system-requirements}
-
-The type system for Logical English had to model Logical English's domain of discourse. Logical English has two categories of terms:
-\begin{enumerate}
-    \item atomic terms, such as names of real-world objects
-    \item atomic formulas, which feature as terms in expressions of modality.
-\end{enumerate}
-Since atomic formulas may contain terms, these terms will also need to be typed.
-\todo[inline]{Correct the terminology.}
-\\
-\\
-The type system has two purposes: to effectively assign types to the two categories of terms, and to use the assigned types to identify inconsistent placements of terms. 
+The type system for Logical English must model Logical English's domain of discourse. The type system must assign types to terms of atomic formulas, in a way that can identify inconsistent uses of terms. 
 
 % This requirement demanded that the type system must have a hierarchy of types, and that the type of atomic formulas did not affect the types of their arguments.
 
@@ -95,25 +85,25 @@ The type system has two purposes: to effectively assign types to the two categor
 
 % However, this type system is unnecessarily complicated. Our type system does not need to assign types to clauses, but only to atomic formulas. Atomic formulas under the Curry-Howard correspondence would correspond to atomic types: the $A$ or the $B$ in the above example. The power of the Curry-Howard correspondence is in analysing complex propositions: it offers no additional value in analysing atomic formulas.
 
-\section{The User-based Type Hierarchy}
+\section{The Type Hierarchy}
 \label{section:type-hierarchy}
-In Section \cite{section:type-system-review} I determined that a new type system is needed which is fundamentally user-driven. The user would group atomic terms and atomic formulas in the same way: by assigning types that are entirely of their own choosing, having no connection to either either syntax or logical semantics. Here I give a specification of this new type system, based on existing features of Logical English and on the needs of the user.
+In Section \cite{section:type-system-review} I determined that a new type system is needed which is fundamentally user-driven. The user would group terms assigning types that are entirely of their own choosing, having no connection to either syntax or logical semantics. Here I give a specification of this new type system, based on existing features of Logical English and on the needs of the user.
 
 \subsection{The need for a hierarchy}
 The type system relates types to each other through a hierarchy, where types lower in the hierarchy are subtypes of types directly above them.
 \\
 \\
 Motivation for a type hierarchy comes from the structure of English sentences. Sentences in English often contain terms whose implicit types change in specificity. 
-\todo[inline]{Find a study of this.}
+% \todo[inline]{Find a study of this.}
 For instance, consider the sentence ``I love my pet: I adore the way she wags her tail.'' This simple English sentence has the term `pet' have three different levels of specificity of its type, from `a pet' to `a female pet' to `a female pet with a tail' (presumably a dog). As more detail is specified in a sentence, the type of its terms narrows in refinement. 
 \\
 \\
 Supporting scenarios such as this in Logical English was then a key feature of the type system. This meant that a `subtype' relation $\subtype$ between types was needed, where $A \subtype B$ specifies that terms of type $A$ can be used where terms of type $B$ are expected. 
 \\
 \\
-When studying what kind of a type hierarchy would emerge from this relation, I found that this relation obeys the three axioms of a partial order:
+When studying what kind of a type hierarchy would emerge from this relation, it was found that this relation obeys the three axioms of a partial order \cite{posets}:
 \begin{itemize}
-    \item \textbf{Reflexivity:} Every type $A$ must be a subtype of itself, since, of course, terms of type $A$ can be used whenever terms of type $A$ are expected.
+    \item \textbf{Reflexivity:} Every type $A$ must be a subtype of itself, since terms of type $A$ can be used whenever terms of type $A$ are expected.
     \item \textbf{Anti-symmetricity:} If $A \subtype B$ and $B \subtype A$ then the type $A$ and $B$ can be used interchangeably. This means that, in terms of checking for incompatible usages of terms, $A$ and $B$ are equal. 
     \item \textbf{Transitivity:} If terms of type $A$ can be used whenever terms of type $B$ are expected, and terms of type $B$ can be used whenever terms of type $C$ are expected, then it is safe to use terms of type $A$ whenever terms of type $C$ are expected.
 \end{itemize}
@@ -127,20 +117,24 @@ Since $\subtype$ is a partial order, the type hierarchy induced by $\subtype$ fo
     \item If $A \subtype C$, then the connection from $A$ to $C$ can be omitted if there is another type $B$ with $A \subtype B$ and $B \subtype C$
 \end{enumerate}
 
-\subsubsection{The type hierarchy is disconnected}
-In Logical English, atomic terms and atomic formulas are two disjoint categories of terms: there are no terms that are both atomic terms and atomic formulas, making it an error to supply an atomic term where an atomic formula is expected, and vica versa. This means that the type hierarchy is made up of two disconnected Transitive Directed Acyclic Graphs: one containing the types of atomic terms, and the other containing the types of atomic formulas.
+% \todo[inline]{Do we actually want two hierarchies, one for atomic formulas and one for everything else? This may cause problems, such as not being able to have a list containing some atomic formulas and some constants.}
+% \subsubsection{The type hierarchy is disconnected}
+% In Logical English, the atomic formula is its own category of term: there are no terms that are both atomic terms and atomic formulas, making it an error to supply an atomic term where an atomic formula is expected, and vica versa. This means that the type hierarchy is made up of two disconnected Transitive Directed Acyclic Graphs: one containing the types of atomic terms, and the other containing the types of atomic formulas.
 % It must always be an error to use an atomic term whenever an atomic formula is expected. This means that the sub-hierarchy for atomic terms and the sub-hierarchy for atomic formulas must be disconnected Transitive Directed Acyclic Graphs. 
 
-\subsubsection{Top types of the type hierarchy}
-Some atomic formulas apply to any atomic terms, no matter their type: for instance, propositions of the form \codeword{x is x.} This requires a `top type' for these terms, of which every other type is a subtype. A suitable name for the top type could be \codeword{a thing}, taken from everyday English. 
+\subsubsection{The top type of the type hierarchy}
+Some atomic formulas apply to any terms, no matter their type: for instance, propositions of the form \codeword{x is x.} This requires a `top type', of which every other type is a subtype. A suitable name for the top type could be \codeword{a thing}, taken from everyday English. 
+
+\subsubsection{Other types in the type hierarchy}
+The default templates introduce their own types: as well as \codeword{a thing}, the default templates feature the types \codeword{a number}, \codeword{a list}, \codeword{a date}. This means that the latter three types must be subtypes of \codeword{a thing}.
 \\
 \\
-Similarly, there may be modal atomic formulas that apply to any other atomic formula: for instance, modal atomic formulas of the form \codeword{the judge concurs that x.} This would also require a `top type' for atomic formulas; a possible name for this top type could be \codeword{a proposition}.
+Similarly, it may be useful to allow higher-order atomic formulas to apply to any other atomic formula: for instance, modal atomic formulas of the form \codeword{the judge concurs that x.} This would require a default type for atomic formulas; a possible name for this top type could be \codeword{a proposition}.
 % \todo[inline]{Is `predicate' the right technical word?} 
 % \subsubsection{The bottom type of the type hierarchy}
 % The constant \codeword{unknown} in Logical English can be used in the place of any atomic term.
 % \todo[inline]{Find out more about how \codeword{unknown} works, or should work. Is the rest of this paragraph true? Should we allow \codeword{unknown} to be put in the place of atomic formulas in higher-order `that' predicates? Or should \codeword{unknown} only be a valid atomic term?}
 % This means that the type of \codeword{unknown} must be a sub-type of every atomic type. This places the type of \codeword{unknown} as a bottom type of the sub-hierarchy of atomic types. A suitable name for this bottom type could be \codeword{an unknown}. Since \codeword{unknown} is the only term that can be put in place of any term, \codeword{an unknown} is also a unit type, with the term \codeword{unknown} as its only inhabitant.
 
-\todo[inline]{Draw a diagram of this hierarchy once \codeword{unknown} has been clarified.}
+% \todo[inline]{Draw a diagram of this type hierarchy.}
 \end{document}

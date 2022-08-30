@@ -7,21 +7,20 @@ Language Servers have proven to be a powerful tool in creating cross-editor supp
 \\ \\
 However, building a language server does not come without difficulties. Bour et al \cite[]{merlin_experience_report}, and the Visual Studio Code Language Server Extension documentation \cite[]{vsc_langserver_docs}, describe two main challenges that Language Servers face, that of ``incrementality" and ``partiality":
 \begin{itemize}
-    \item Due to effiency constraints, the IDE may only being able to send the portions of the document to the language server (incrementality)
+    \item Due to efficency constraints, the IDE may only being able to send portions of the document to the language server (incrementality)
     \item The language server has to parse incomplete portions of code that the user is writing (partiality)
 \end{itemize}
-In building their language server for OCaml, Bour et al solved these two issues by building their own parser, generated using an enhanced version of Menhir. This was needed because OCaml has a complex, recursive grammar, which made parsing incomplete portions of code a highly complex task. Logical English, however, has a simpler grammar; the only recursive feature that I will need to incorporate is that of modal atomic formulas. This makes it feasible for the language server to not need a separate, standalone parser. Instead, the language server will parse the document itself as and when needed.
+In building their language server for OCaml, Bour et al solved these two issues by building their own parser, generated using an enhanced version of Menhir \cite{mehir}. This was needed because OCaml has a complex, recursive grammar, which made parsing incomplete portions of code a highly complex task. Logical English, however, has a simpler grammar; the only recursive feature that I will need to incorporate is that of higher-order atomic formulas. This makes it feasible for the language server to not need a separate, standalone parser. Instead, the language server will parse the document itself as and when needed.
 
 \section{Editor Features}
 \subsection{Code Generation}
-There is also existing literature on boilerplate generation from existing code. Wang et al \cite[]{classless_java} created a powerful compilation agent that auto-generates Java boilerplate code from more succint, annotated Java. The boilerplate code is generated at the Abstract Syntax Tree (AST) level: the code generator starts with the AST representing the annotated code and, using the Lombok compilation agent, produces an AST corresponding to non-annotated, boilerplate Java. However, the recursive Logical English features from which I generate boilerplate code -- that of modal atomic formulas -- are much more constrained than the recursive features of Java. Thus I can favour a less complex representation over an AST.
+There is also existing literature on boilerplate generation from existing code. Wang et al \cite[]{classless_java} created a powerful compilation agent that auto-generates Java boilerplate code from more succint, annotated Java. The boilerplate code is generated at the Abstract Syntax Tree (AST) level: the code generator starts with the AST representing the annotated code and, using the Lombok compilation agent, produces an AST corresponding to non-annotated, boilerplate Java. Inspired by this, I will also use a tree-like structure to represent the recursive nature of atomic formulas.
 
 \subsection{Code Completion}
-Bruch et al \cite{code_completion_study} create the `Best Matching Neighbours' algorithm for suggesting method calls in object-oriented code. The Best Matching Neighbours algorithm suggests code completions of a code library's methods by learning from the patterns in large, pre-existing codebases that use the library. This does not have an analogue in Logical English: there are no code libraries that many documents draw from; each Logical English document defines all the templates and atomic formulas that it uses. This means that, in suggesting the completion an atomic formula, the Logical English editor must use a simpler, rule-based approach rather than a learning algorithm.
-
-% the templates and atomic formulas that a document uses are all defined in the document. 
-
-However, in their study, Bruch et al hypothesise that useful code completion \cite[p.~214]{code_completion_study}:
+Bruch et al \cite{code_completion_study} create the `Best Matching Neighbours' algorithm for suggesting method calls in object-oriented code. The Best Matching Neighbours algorithm suggests code completions of library methods by learning from patterns found in large, pre-existing codebases. This does not have an analogue in Logical English: there are no code libraries that many documents may draw from; each Logical English document defines all the templates and atomic formulas that it uses. This means that, in suggesting the completion of an atomic formula, the Logical English editor must use a simpler, rule-based approach rather than a learning algorithm.
+\\
+\\
+In their study, Bruch et al hypothesise that useful code completion \cite[p.~214]{code_completion_study}:
 \begin{itemize}
     \item filters irrelevant suggestions, and
     \item presents suggestions in order of relevance
@@ -32,15 +31,13 @@ Bruh et al applied the two principles in their design of the Best Matching Neigh
 
 \section{Type Systems}
 \label{section:type-system-review}
-As noted by R. Davies, type systems are a central feature to programming languages: when used, they express the program's fundamental structure \cite[p.~1]{refinement_types}. Partly because of this, the field of type systems is thoroughly researched and has a large body of literature. 
+As noted by R. Davies, type systems are a central feature to programming languages, expressing the program's fundamental structure \cite[p.~1]{refinement_types}. Partly because of this, the field of type systems is thoroughly researched and has a large body of literature. 
 \\
 \\
-A key function of the type system developed for Logical English is to assign types to atomic formulas. 
-
-Many popular programming languages that assign types to propositions do so based on the proposition's syntax. For instance, the programming language C++ assigns a type to an atomic formula purely based on the types of the atomic formula's terms. In C++, propositions are viewed as functions that take their terms as arguments and return a boolean value. This means that if a proposition has $n$ arguments of type \codeword{T1}, \codeword{T2}, $\dots$, \codeword{Tn} then the type of the proposition is \codeword{std::predicate<T1, T2, . . ., Tn>} \cite{std_predicate}. This is mirrored in Java in the \codeword{Predicate} class, where $n = 1$, and \codeword{BiPredicate} class, where $n = 2$ \cite{java_util_function}. 
+A key function of the type system developed for Logical English is to assign types to atomic formulas. Many popular programming languages that assign types to propositions do so based on the proposition's syntax. For instance, the programming language C++ assigns a type to a proposition based on the types of the proposition's arguments. In C++, propositions are viewed as functions that take their terms as arguments and return a boolean value. This means that if a proposition has $n$ arguments of type \codeword{T1}, \codeword{T2}, $\dots$, \codeword{Tn} the type of the proposition is \codeword{std::predicate<T1, T2, . . ., Tn>} \cite{std_predicate}. This is mirrored in Java in the \codeword{Predicate} class, where $n = 1$, and in the \codeword{BiPredicate} class, where $n = 2$ \cite{java_util_function}. 
 \\
 \\
-This type system classifies atomic formulas syntactically according to the type of terms that they describe. However, Logical English as a language seeks to minimise the syntactic rules it imposes on the user. I believe that grouping atomic formulas by their syntax is unintuitive; a Logical English document may contain atomic formulas that agree in the order and type of their arguments, but differ in their semantic meaning. Consider, for instance, the templates in Listing \cite{le:same-product-type}
+This type system assigns types to atomic formulas syntactically, according to the type of terms that the atomic formulas describe. However, Logical English as a language seeks to minimise the syntactic rules it imposes on the user. I believe that assigning types to atomic formulas based on their syntax is unintuitive; a Logical English document may contain atomic formulas that agree in the order and type of their arguments, but differ in their semantic meaning. Consider, for instance, the templates in Listing \cite{le:same-product-type}
 \begin{lstlisting}[language=LE,caption={Logical English templates that have differing semantic meaning, but under a syntactic type system would be grouped under the same type.},label={le:same-product-type}]
     *a person* works at *a company* for *a number* years.
     *a person* sues *a company* for *a number* dollars.
@@ -48,5 +45,6 @@ This type system classifies atomic formulas syntactically according to the type 
 \end{lstlisting}
 Each template in Listing \cite{le:same-product-type} has the same three types in the same order. This means that, under a syntax-based type system, atomic formulas that have the structure of either of the three templates would be assigned the same type 
 \footnote{In the notation of C++, this type would be \codeword{std::predicate<Person, Company, Number>}}.
-A syntax-based type system will therefore not notice any errors if such atomic formulas are interchanged. However, users of Logical English may feel that these templates ought to be categorised in a way that differ from each other. Therefore, unlike the above object-oriented languages, I introduce a type system for Logical English where atomic formulas are assigned types according to their semantic meaning, as determined by the user.
+A syntax-based type system will therefore not notice errors if such atomic formulas are interchanged. However, users of Logical English may feel that these templates ought to be categorised in a way that differ from each other. Therefore, unlike the above object-oriented languages, I introduce a type system for Logical English where atomic formulas are assigned types according to their semantic meaning, as determined by the user.
+% \todo[inline]{Research sorts. Explain how our type system is closer to sorts than to type-theory types.}
 \end{document}

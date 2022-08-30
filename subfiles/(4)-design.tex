@@ -2,15 +2,37 @@
 \begin{document}
 \chapter{Design}
 \section{System Overview}
+% \todo[inline]{Figure out where to put this section. It's being referred to by Requiremens.}
+The editor documented in this report is a language extension for the popular Integrated Development Environment (IDE) `Visual Studio Code'. The language extension consists of three components: a language client, a syntax highlighter, and a language server. 
+
+\subsection{Language Client}
+The language client is built for Visual Studio Code. The language client delivers the editor's features to the user's Visual Studio Code window.
+
+\subsection{Syntax Highlighter}
+Contrary to what the name ``syntax highlighter'' may suggest, the syntax highlighter is merely a static document that contains the grammar of Logical English. The language client parses the syntax highlighter when the client launches, using the grammatical rules in the syntax highlighter to highlight aspects of Logical English. The syntax highlighter is written according to the TextMate grammar specification, which allows it to be used by language clients for IDEs other than Visual Studio Code.
+
+\subsection{Language Server}
+The language server calculates the main features of the editor. When the user writes in the document, the language client communicates the change to the language server. The language client may request features such as:
+\begin{itemize}
+    \item whether there are any errors in the document to diagnose
+    \item whether what the user is currently writing can be auto-completed
+    \item if the user is hovering over an error message, whether a `quick fix' can be suggested
+\end{itemize}
+The language server calculates these features and communicates them to the language client. The language client ensures that these features are then displayed to the user. 
+\\
+\\
+The language server is written according to the Language Server Protocol. This allows the language server to be used by language clients for many IDEs other than Visual Studio Code.
+
+\subsection{How the components interact}
 \begin{figure}[h!]
 \centering
-\includegraphics[width = \linewidth]{./figures/le-editor.png}
+\includegraphics[width = \linewidth]{figures/le-editor}
 \caption{A diagram showing the overall structure of the Logical English editor.}
 \label{fig:system-overview}
 \end{figure}
-\todo[inline]{Increase the font size.}
+% \todo[inline]{Increase the font size.}
 % The Logical English editor is a complex system with multiple components. Before I go into detail describing how the editor was designed, I believe it will be helpful to supply some context by giving an overview of the editor's components and how they relate to each other.
-The overall structure of the editor is described in Figure \cite{fig:system-overview}. The user interacts with the editor through the language client. The language client takes on the rules of the syntax highlighter to highlight basic syntactic features of the user's document. The language client highlights semantic features of the document, along with presenting any code completions or quick fixes, by routinely polling the language server for this data. The language server presents error diagnostics by requesting diagnostic data from the server whenever the user makes a change to the document.
+The overall structure of the editor is described in Figure \ref{fig:system-overview}. The user interacts with the editor through the language client. The language client takes on the rules of the syntax highlighter to highlight basic syntactic features of the user's document. The language client highlights semantic features of the document, along with presenting any code completions or quick fixes, by routinely polling the language server for this data. The language server presents error diagnostics by requesting diagnostic data from the server whenever the user makes a change to the document.
 
 \section{Requirements Approach}
 \subsection{Why a Language Server?}
@@ -21,9 +43,9 @@ Logical English is currently edited on the SWISH platform. This runs on Codemirr
 \\
 \\
 However, at the time, the SWISH platform was written in Codemirror 5, but the maintainers were considering migrating to Codemirror 6. Prematurely writing the language extension in Codemirror 6 would be too much of a risk, as migration was uncertain, and users would not be able to test the extension until it was migrated. However, developing the extension in Codemirror 5 was also a risk. This was because migration to Codemirror 6 would involve a number of breaking changes \cite{codemirror_migration}, for example, changes that would have entirely restructured interacting with Logical English documents.
-\\ 
-\\ 
-This prompted us to then consider Monaco. \todo[inline]{Why were we considering Monaco? How would Monaco have worked with SWISH?}.
+% \\ 
+% \\ 
+% This prompted us to then consider Monaco. \todo[inline]{Why were we considering Monaco? How would Monaco have worked with SWISH?}.
 \\ 
 \\ 
 After researching other options, I found that an editor-agnostic language server would leave us open to using a variety of editors. Using the Language Server Protocol, a single language server would be able to connect to any language client that supports the protocol. This includes language clients written in online editors such as Codemirror 6 \cite{codemirror_6_language_server} and Monaco \cite{monaco_language_server}, along with some of the most popular desktop code editors \cite{ide_rankings}, such as Visual Studio Code \cite{vsc_langserver_docs}, Visual Studio \cite{visual_studio_language_server} and IntelliJ \cite{intellij_language_server}. 
@@ -50,7 +72,7 @@ Although a language server could be connected to many different language clients
 Visual Studio Code is a highly popular IDE. Stack Overflow, one of the most popular websites for the programming community, conducts global surveys every year monitoring the programming community's trends. In 2021, out of over 80,000 responses, Visual Studio Code had ``a significant lead as the IDE of choice across all developers", with over 70\% of responders using the IDE  \cite{ide_rankings}. This made Visual Studio Code a clear choice in terms of popularity. 
 \\
 \\
-However, I also considered two runner-up IDEs in the survey, Visual Studio and IntelliJ, with 29\% and 33\% of responders using the IDEs. As mentioned in the previous section, all three IDEs support language servers. However, unlike Visual Studio Code, Visual Studio and IntelliJ are complex IDEs with a larger application size, longer install time, and larger user interface. A large part of the target audience of Logical English are logicians and lawyers, neither group involving itself with enterprise programming. This lead me to decide that the simpler the IDE, the better; having to use an enterprise-programming IDE would be inconvenient and off-putting. 
+However, I also considered two runner-up IDEs in the survey, Visual Studio and IntelliJ, with 29\% and 33\% of responders using the IDEs. As mentioned in the previous section, all three IDEs support language servers. However, unlike Visual Studio Code, Visual Studio and IntelliJ are complex IDEs with a larger application size, longer install time, and larger user interface. A large part of the target audience of Logical English are logicians and lawyers, neither group involving itself with enterprise programming. As noted by Zayour and Hajjdiab in their survey on IDE productivity \cite{ide_productivity}, ``the complexity of the [coding] environment creates additional burdens'', mostly in the ability to fix errors. This lead me to decide that the simpler the IDE, the better; having to use an enterprise-programming IDE would be inconvenient and off-putting. 
 % \todo[inline]{Investigate how well Visual Studio Code is suited for people not used to programming}
 
 % \subsubsection{The features supported}
@@ -127,11 +149,11 @@ However, there is a special case of this concurrency problem that the use of loc
 While the above special case might be rare in practice, the possibility of this issue hinted to me that there might be an overall better design than using global variables for the template list and type tree. The only way to avoid such an issue is for the templates and type tree to be updated when processing each request. This way, the templates and type trees could now be constant, local values to each request. Although this would result in duplicate work in the case that the document does not change between requests, this is the only way to avoid the concurrency issues. This lead me to research design based around a lack of mutable state.
 
 \subsection{Current Design Methodology}
-\subsubsection{Avoiding Mutable State}
-The overall design methodology was mainly guided by the principles outlined in ``Java to Kotlin: A Refactoring Guidebook" by Duncan McGregor and Nat Pryce \cite{java_to_kotlin_stateless}. Although taking examples from refactoring Java code into Kotlin, the book outlined design principles based on the ideas of minimising mutable state in classes and using `pure', stateless functions. 
+% \subsubsection{Avoiding Mutable State}
+The overall design methodology was guided by the principles outlined in ``Java to Kotlin: A Refactoring Guidebook" by Duncan McGregor and Nat Pryce \cite{java_to_kotlin_stateless}. Although taking examples from refactoring Java code into Kotlin, the book outlined design principles based on the ideas of minimising mutable state in classes and using `pure', stateless functions. 
 \\
 \\
-McGregor and Pryce give two relevant scenarios in which avoiding mutable state in classes and functions is benefitial. Firstly, objects and functions without mutable state do not change as their contents is iterated over, or otherwise accessed across multiple instructions. \cite{java_to_kotlin_stateless} This is exactly the solution that I was looking for in avoiding the concurrency problems. Further, pure functions produce the same output if they are called multiple times\cite{java_to_kotlin_pure_functions}. This is ideal as with each type of request now generating its own local type tree and list of templates, if the document has not changed between two requests, then the same templates and type tree should be produced. In other words, given the same document as input, the factory methods that generate the templates and type tree should produce the same output.
+McGregor and Pryce give two relevant scenarios in which avoiding mutable state in classes and functions is beneficial. Firstly, objects and functions without mutable state do not change as their contents is iterated over, or otherwise accessed across multiple instructions. \cite{java_to_kotlin_stateless} This is exactly the solution that I was looking for in avoiding the concurrency problems. Further, pure functions produce the same output if they are called multiple times\cite{java_to_kotlin_pure_functions}. This is ideal as with each type of request now generating its own local type tree and list of templates, if the document has not changed between two requests, then the same templates and type tree should be produced. In other words, given the same document as input, the factory methods that generate the templates and type tree should produce the same output.
 \\
 \\
 Another important reason for favouring minimal state programming is for the ease of understanding the code. Limiting the use of global, mutable state in turn limits the scope for error. As put by McGregor and Pryce, when looking for the source of an error \cite{java_to_kotlin_error}, 
